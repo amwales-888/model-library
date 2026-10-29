@@ -224,8 +224,9 @@ The installer lets the user choose the install folder and adds Start menu and de
 lives in `%APPDATA%\model-library`, so updating or uninstalling does not delete it. Without a code-signing certificate
 Windows SmartScreen shows "Windows protected your PC" (More info, then Run anyway).
 
-`.github/workflows/windows-installer.yml` builds the same installer on GitHub: push a tag such as `v0.1.0` (or run the
-workflow by hand) and the `.exe` is attached to the run, and to the release for a tag.
+`.github/workflows/installers.yml` builds the Windows installer, the Linux `.deb` and the AppImage on GitHub: push a tag
+such as `v0.1.0` (or run the workflow by hand). A hand-run leaves the files as artifacts on the run; a tag also attaches
+them to a GitHub Release. (If the project is in a sub-folder of your repository, set `working-directory` to that folder.)
 
 ## What comes next
 
