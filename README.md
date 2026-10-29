@@ -3,10 +3,11 @@ An application to help managing collections of STL/3MF models, most importantly 
 
 TLDR - This application is completely written by AI. I was curious about how far the technology had progressed and after talking to a number of people I whos oppions I respect I thought I would drop my prejudices and give it a try.
 
-<a href=model-library-getting-started.html>User Documentation - Getting Started</a>
+[Getting started guide](model-library/docs/getting-started.md)
+
+</BR>
 
 ![wibble](images/Capture.JPG)
-
 
 How to build and run for those interested.
 
