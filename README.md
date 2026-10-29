@@ -5,7 +5,7 @@ TLDR - This application is completely written by AI. I was curious about how far
 
 <a href=model-library-getting-started.html>User Documentation - Getting Started</a>
 
-![wibble](images/Capture.jpg)
+![wibble](images/Capture.JPG)
 
 
 How to build and run for those interested.
