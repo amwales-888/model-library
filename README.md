@@ -6,10 +6,10 @@ This application was completely written by AI. I was curious about how far the t
 
 ![wibble](images/Capture.JPG)
 
-Q. How do I run it</BR>
-A. I have included installers for Linux and Windows, you can find the [here](releases/tag/v0.1.0)
+Q. How do I run it?</BR>
+A. I have included installers for Linux and Windows, you can find the latest here - [![Latest release](https://img.shields.io/github/v/release/amwales-888/model-library)](https://github.com/amwales-888/model-library/releases/latest)
 
-For those interested in details on its architecture and how to build it yourself from source, take a look at the [Getting started guide](model-library/docs/getting-started.md)
+For those interested in a user name, details on its architecture and how to build it yourself from source, take a look at the [Getting started guide](model-library/docs/getting-started.md)
 
 --------------------------
 
