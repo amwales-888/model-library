@@ -1,25 +1,15 @@
 # model-library
-An application to help managing collections of STL/3MF models, most importantly saving thumbnails that can be re-oriented.
+An application to help manage collections of STL/3MF models, most importantly saving thumbnails that can be re-oriented.
 
-TLDR - This application is completely written by AI. I was curious about how far the technology had progressed and after talking to a number of people I whos oppions I respect I thought I would drop my prejudices and give it a try.
-
-[Getting started guide](model-library/docs/getting-started.md)
-
-</BR>
+# TLDR
+This application was completely written by AI. I was curious about how far the technology had progressed and, after talking to a number of people whose opinions I respect, I thought I would drop my prejudices and give it a try.
 
 ![wibble](images/Capture.JPG)
 
-How to build and run for those interested.
+Q. How do I run it</BR>
+A. I have included installers for Linux and Windows, you can find the [here](releases/tag/v0.1.0)
 
-```
-git clone https://github.com/amwales-888/model-library.git
-cd model-library
-npm install
-npm test
-npm start
-```
-
-The assumption is that you have all the npm requisites installed.
+For those interested in details on its architecture and how to build it yourself from source, take a look at the [Getting started guide](model-library/docs/getting-started.md)
 
 --------------------------
 
@@ -60,3 +50,6 @@ Will I port it? I doubt it, it runs fast enough for me to use. I had it working 
 
 How long did it take to descend into this madness? Oh I spent a few hours on Sunday night, a bit of Monday and I'm writing this Tuesday morning.
 
+Oh today, Tuesday evening Claude built the actions to instruct GitHub how to generate the installers when a Tag is pushed, I am at a loss for words.
+
+To show how bad it got, I started on Tuesday evening, NOT Sunday and today is Thursday, NOT Tuesday. I am retired and get weekdays muddled now.
