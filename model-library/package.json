@@ -10,7 +10,8 @@
     "test": "node --test",
     "pack": "electron-builder --dir",
     "dist:linux": "electron-builder --linux",
-    "vendor": "node scripts/vendor-three.js"
+    "vendor": "node scripts/vendor-three.js",
+    "dist:win": "electron-builder --win nsis"
   },
   "devDependencies": {
     "electron": "^45.1.0",
@@ -78,6 +79,15 @@
       ]
     },
     "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "build/icon.ico",
       "extraResources": [
         {
           "from": "vendor/7zip/win",
@@ -107,6 +117,15 @@
           "to": "7zip/License.txt"
         }
       ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Model Library",
+      "artifactName": "ModelLibrary-Setup-${version}.${ext}"
     }
   },
   "desktopName": "model-library.desktop",

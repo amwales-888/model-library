@@ -211,6 +211,22 @@ copy of Electron the first time. It is unsigned, so Windows SmartScreen shows a 
 
 `npm run pack` makes an unpacked build in `dist/linux-unpacked` for quick checks.
 
+## Building a Windows installer
+
+Build on Windows (PowerShell, not WSL), from a plain local folder such as `C:\dev\model-library`:
+
+```powershell
+npm install
+npm run dist:win        # writes dist\ModelLibrary-Setup-<version>.exe
+```
+
+The installer lets the user choose the install folder and adds Start menu and desktop shortcuts. The library itself
+lives in `%APPDATA%\model-library`, so updating or uninstalling does not delete it. Without a code-signing certificate
+Windows SmartScreen shows "Windows protected your PC" (More info, then Run anyway).
+
+`.github/workflows/windows-installer.yml` builds the same installer on GitHub: push a tag such as `v0.1.0` (or run the
+workflow by hand) and the `.exe` is attached to the run, and to the release for a tag.
+
 ## What comes next
 
 1. Windows and macOS installers (best built on those systems, or in GitHub Actions). Unsigned installers show a security warning.
