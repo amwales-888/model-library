@@ -9,6 +9,12 @@ This application was completely written by AI. I was curious about how far the t
 Q. How do I run it?</BR>
 A. I have included installers for Linux and Windows, you can find the latest here - [![Latest release](https://img.shields.io/github/v/release/amwales-888/model-library)](https://github.com/amwales-888/model-library/releases/latest)
 
+Q. Hang on did you say you can change the orientation of the model in the thumbnail and it will remember it?
+A. I didn't but YES you can.
+
+Q. Woah, so if I have a single 12GB .7z archive split over multiple files, I can browse the contents and generate thumbnails and download them invidually any time later.
+A. Again, YES YOU CAN!
+
 For those interested in a user name, details on its architecture and how to build it yourself from source, take a look at the [Getting started guide](model-library/docs/getting-started.md)
 
 --------------------------
