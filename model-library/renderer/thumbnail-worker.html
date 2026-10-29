@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Thumbnail renderer</title>
+<!-- A hidden page. The main process sends it model files one at a time and it answers with a PNG. -->
+<script type="importmap">
+{
+  "imports": {
+    "three": "./vendor/three/build/three.module.js",
+    "three/addons/": "./vendor/three/examples/jsm/"
+  }
+}
+</script>
+</head>
+<body>
+<script type="module" src="thumbnail-worker.js"></script>
+</body>
+</html>

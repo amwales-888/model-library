@@ -1,0 +1,219 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Model Thumbnailer</title>
+
+<!-- three.js is loaded from renderer/vendor (copied by scripts/vendor-three.js) as ES modules. The import map lets the code below say
+     "three" and "three/addons/..." instead of long paths. -->
+<script type="importmap">
+{
+  "imports": {
+    "three": "./vendor/three/build/three.module.js",
+    "three/addons/": "./vendor/three/examples/jsm/"
+  }
+}
+</script>
+
+<style>
+  /* Layout: a large 3D viewer on the left, an info + thumbnail panel on the right. Stacks on narrow screens. */
+  :root {
+    color-scheme: light;
+    --bg: #eceff2;
+    --surface: #f8fafb;
+    --fg: #14202b;
+    --muted: #55646f;
+    --line: #cfd7de;
+    --accent: #0a7c78;
+    --danger: #b3261e;
+    --font-display: "Familjen Grotesk", "Helvetica Neue", Arial, sans-serif;
+    --font-body: "IBM Plex Sans", system-ui, sans-serif;
+    --font-mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      color-scheme: dark;
+      --bg: #0d1317;
+      --surface: #131b21;
+      --fg: #e4ecf1;
+      --muted: #8da0ad;
+      --line: #25323b;
+      --accent: #3fd0c4;
+      --danger: #ff8a80;
+    }
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--fg);
+    font-family: var(--font-body);
+    font-size: 15px;
+    line-height: 1.5;
+    padding: 28px 16px 48px;
+  }
+  .wrap { max-width: 1060px; margin: 0 auto; display: flex; flex-direction: column; gap: 20px; }
+  h1 {
+    font-family: var(--font-display);
+    font-weight: 600;
+    font-size: clamp(1.8rem, 4.5vw, 2.4rem);
+    line-height: 1.1;
+    letter-spacing: -0.01em;
+    margin: 0 0 4px;
+  }
+  header p { margin: 0; color: var(--muted); max-width: 64ch; }
+
+  .app { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 20px; align-items: start; }
+  @media (max-width: 780px) { .app { grid-template-columns: minmax(0, 1fr); } }
+
+  .viewer {
+    position: relative;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    aspect-ratio: 1 / 1;
+    min-height: 300px;
+    overflow: hidden;
+  }
+  .viewer.dragging { border-color: var(--accent); outline: 2px dashed var(--accent); outline-offset: -8px; }
+  .viewer canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
+  .hint {
+    position: absolute; left: 12px; bottom: 10px; right: 12px;
+    font-family: var(--font-mono); font-size: 12px; color: var(--muted);
+    pointer-events: none;
+  }
+
+  .panel { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+  .row { display: flex; flex-wrap: wrap; gap: 10px 14px; align-items: center; }
+  button, .btn {
+    font-family: var(--font-mono);
+    font-size: 12.5px;
+    background: var(--fg);
+    color: var(--bg);
+    border: 0;
+    border-radius: 4px;
+    padding: 8px 14px;
+    cursor: pointer;
+    text-decoration: none;
+    display: inline-block;
+  }
+  button:hover, .btn:hover { background: var(--accent); }
+  button.secondary { background: transparent; color: var(--fg); border: 1px solid var(--line); }
+  button.secondary:hover { border-color: var(--accent); color: var(--accent); }
+  [hidden] { display: none !important; }
+  .btn[aria-disabled="true"] { opacity: 0.4; pointer-events: none; }
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  label { font-family: var(--font-mono); font-size: 12.5px; }
+  select { font-family: var(--font-mono); font-size: 12.5px; background: var(--surface); color: var(--fg); border: 1px solid var(--line); border-radius: 4px; padding: 5px 6px; }
+  input[type="checkbox"] { accent-color: var(--accent); width: 16px; height: 16px; vertical-align: -3px; margin-right: 6px; }
+  input[type="file"] { display: none; }
+
+  h2 { font-family: var(--font-display); font-size: 1.05rem; font-weight: 600; margin: 0 0 8px; }
+  dl { margin: 0; display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 4px 14px; font-size: 13.5px; }
+  dt { color: var(--muted); }
+  dd { margin: 0; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+  .mono { font-family: var(--font-mono); font-size: 12px; }
+
+  #status { min-height: 1.5em; font-size: 13.5px; color: var(--muted); }
+  #status.error { color: var(--danger); }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header>
+    <h1>Model Thumbnailer</h1>
+    <p>Drop an STL or 3MF file onto the viewer. It is parsed in your browser, shown in 3D, and rendered to a small PNG thumbnail. Nothing is uploaded.</p>
+  </header>
+
+  <div class="app">
+    <div class="viewer" id="viewer">
+      <canvas id="view" aria-label="3D model viewer"></canvas>
+      <div class="hint">Drag to orbit · scroll to zoom · right-drag to pan</div>
+    </div>
+
+    <div class="panel">
+      <div class="row">
+        <label class="btn" for="file" role="button" tabindex="0" id="pick">Choose file</label>
+        <input id="file" type="file" accept=".stl,.3mf">
+        <button class="secondary" id="reset" type="button">Reset view</button>
+      </div>
+      <div id="status" role="status" aria-live="polite"></div>
+
+      <section>
+        <h2>File</h2>
+        <dl>
+          <dt>Name</dt><dd id="i-name">-</dd>
+          <dt>Format</dt><dd id="i-fmt">-</dd>
+          <dt>Size</dt><dd id="i-size">-</dd>
+          <dt>Triangles</dt><dd id="i-tris">-</dd>
+          <dt>Dimensions</dt><dd id="i-dims">-</dd>
+          <dt>SHA-256</dt><dd id="i-sha" class="mono">-</dd>
+          <dt id="rating-label" hidden>Rating</dt>
+          <dd id="rating-cell" hidden>
+            <select id="rating" aria-labelledby="rating-label" disabled>
+              <option value="">Unrated</option>
+              <option value="0">0 stars</option>
+              <option value="1">★ 1 star</option>
+              <option value="2">★★ 2 stars</option>
+              <option value="3">★★★ 3 stars</option>
+              <option value="4">★★★★ 4 stars</option>
+              <option value="5">★★★★★ 5 stars</option>
+            </select>
+            <span id="rating-note" role="status" aria-live="polite" style="font-size:12.5px;color:var(--muted)"></span>
+          </dd>
+        </dl>
+      </section>
+
+      <section>
+        <h2>Thumbnail</h2>
+        <p id="thumb-help" style="margin:0 0 10px;font-size:13px;color:var(--muted)">Orbit, zoom or pan until the model looks right, then update the thumbnail.</p>
+        <div class="row" style="margin-bottom:12px">
+          <label><input id="zup" type="checkbox" checked>Z is up</label>
+        </div>
+        <div class="row" id="update-row" hidden>
+          <button id="update" type="button" disabled>Update</button>
+          <span id="update-note" role="status" aria-live="polite" style="font-size:13px;color:var(--muted)"></span>
+        </div>
+        <details id="advanced" style="margin-top:14px">
+          <summary style="cursor:pointer;font-size:13px;color:var(--muted)">Advanced: download a PNG</summary>
+          <div class="row" style="margin:10px 0">
+            <label for="tsize">Size</label>
+            <select id="tsize">
+              <option value="128">128 px</option>
+              <option value="256">256 px</option>
+              <option value="512" selected>512 px</option>
+            </select>
+          </div>
+          <a class="btn" id="download" href="#" download="thumbnail.png" aria-disabled="true">Download PNG</a>
+          <div class="row" id="revert-row" style="margin-top:12px" hidden>
+            <button id="revert" type="button" class="secondary">Revert to automatic view</button>
+          </div>
+        </details>
+      </section>
+
+      <section>
+        <h2>View settings</h2>
+        <p style="margin:0 0 10px;font-size:13px;color:var(--muted)">Saved inside the PNG as text metadata, so the view can be recreated later.</p>
+        <dl>
+          <dt>Camera position</dt><dd id="v-pos" class="mono">-</dd>
+          <dt>Target</dt><dd id="v-target" class="mono">-</dd>
+          <dt>Distance</dt><dd id="v-dist" class="mono">-</dd>
+          <dt>Azimuth</dt><dd id="v-az" class="mono">-</dd>
+          <dt>Elevation</dt><dd id="v-el" class="mono">-</dd>
+          <dt>Field of view</dt><dd id="v-fov" class="mono">-</dd>
+          <dt>Z is up</dt><dd id="v-zup" class="mono">-</dd>
+          <dt>Thumbnail</dt><dd id="v-size" class="mono">-</dd>
+          <dt>Background</dt><dd id="v-bg" class="mono">-</dd>
+          <dt>Render version</dt><dd id="v-ver" class="mono">-</dd>
+        </dl>
+      </section>
+    </div>
+  </div>
+</div>
+
+<script type="module" src="viewer.js"></script>
+</body>
+</html>

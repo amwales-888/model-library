@@ -1,0 +1,163 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data: thumb:">
+<title>Model Library</title>
+<link rel="stylesheet" href="library.css">
+</head>
+<body>
+<div class="app">
+  <header class="top">
+    <h1>Model Library</h1>
+    <label class="search">
+      <span class="sr">Search files</span>
+      <input id="search" type="search" placeholder="Search by name, folder or SHA-256" autocomplete="off">
+    </label>
+    <div class="row">
+      <button id="add" type="button">Add folder…</button>
+    </div>
+    <div class="menu-wrap push-right">
+      <button id="prefs" type="button" class="secondary" aria-haspopup="menu" aria-expanded="false">Preferences ▾</button>
+      <div id="prefs-menu" class="menu" role="menu" hidden>
+        <button id="manage-folders" type="button" role="menuitem">Manage folders…</button>
+        <button id="open-log" type="button" role="menuitem" title="A text file with the time of every scan, the files and hashes, thumbnail timings, warnings and errors">Show log file</button>
+        <button id="toggle-zips" type="button" role="menuitemcheckbox" aria-checked="true" title="When on, .stl and .3mf files inside .zip, .7z and .rar files are added to the library too">
+          <span id="zips-check" aria-hidden="true">✓</span> Search inside archives (.zip, .7z, .rar)
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <div class="status-area">
+    <section id="progress-box" class="progress" hidden aria-live="polite">
+      <div class="bar" aria-hidden="true"><div id="bar-fill"></div></div>
+      <div class="row between">
+        <span id="progress-text">Scanning…</span>
+        <button id="cancel" type="button" class="secondary small">Cancel</button>
+      </div>
+      <div id="progress-file" class="mono muted clip"></div>
+    </section>
+
+    <section id="thumbs-box" class="progress" aria-labelledby="thumbs-h" hidden>
+      <div class="row between wrap-row">
+        <h2 id="thumbs-h">Thumbnails</h2>
+        <div class="row">
+          <button id="thumbs-pause" type="button" class="secondary small" hidden>Pause</button>
+          <button id="thumbs-retry" type="button" class="secondary small" hidden>Retry failed</button>
+        </div>
+      </div>
+      <div class="bar determinate" aria-hidden="true"><div id="thumbs-fill"></div></div>
+      <div id="thumbs-text">-</div>
+      <div id="thumbs-file" class="mono muted clip"></div>
+    </section>
+
+    <section id="download-box" class="progress" hidden aria-live="polite">
+      <div class="row between wrap-row">
+        <h2>Download</h2>
+        <button id="download-cancel" type="button" class="secondary small">Cancel</button>
+      </div>
+      <div class="bar determinate" aria-hidden="true"><div id="download-fill"></div></div>
+      <div id="download-text">-</div>
+      <div id="download-file" class="mono muted clip"></div>
+    </section>
+
+    <div id="message" role="status" aria-live="polite" class="message" hidden><span id="message-text"></span><button id="message-close" type="button" class="message-close" aria-label="Dismiss this message" title="Dismiss"></button></div>
+  </div>
+
+  <div class="main">
+    <nav class="tree-pane" aria-label="Folders">
+      <div id="tree" role="tree"></div>
+      <p id="roots-empty" class="muted pad" hidden>No folders yet. Choose “Add folder…” to scan one.</p>
+    </nav>
+
+    <section class="grid-pane" aria-label="Models">
+      <div class="grid-bar">
+        <span id="crumb" class="crumb clip"></span>
+        <label class="check">Order by
+          <select id="sort">
+            <option value="name">Name</option>
+            <option value="path">Folder and name</option>
+            <option value="modified">Date modified</option>
+            <option value="added">Date added</option>
+            <option value="size">File size</option>
+            <option value="rating">Rating</option>
+          </select>
+        </label>
+        <button id="sort-dir" type="button" class="secondary small" aria-label="Reverse the order"></button>
+        <label class="check"><input id="recursive" type="checkbox"> Include subfolders</label>
+        <label class="check"><input id="missing" type="checkbox"> Show missing</label>
+        <label class="check">Size <input id="zoom" type="range" min="110" max="260" step="10" value="160"></label>
+        <span id="rows-count" class="muted"></span>
+        <span id="selbar" class="selbar" hidden><strong id="sel-count"></strong> <button id="sel-clear" type="button" class="secondary small">Clear</button></span>
+        <button id="sel-all" type="button" class="secondary small" title="Select every file that matches (Ctrl+A)">Select all</button>
+      </div>
+      <div class="filter-bar" role="group" aria-label="Filters">
+        <span class="muted">Filter</span>
+        <label class="check">Size
+          <select id="f-size">
+            <option value="any">Any size</option>
+            <option value="lt100k">Under 100 KB</option>
+            <option value="100k-1m">100 KB to 1 MB</option>
+            <option value="1m-10m">1 MB to 10 MB</option>
+            <option value="10m-50m">10 MB to 50 MB</option>
+            <option value="gt50m">Over 50 MB</option>
+          </select>
+        </label>
+        <label class="check">Age
+          <select id="f-age">
+            <option value="any">Any age</option>
+            <option value="day">Last 24 hours</option>
+            <option value="week">Last 7 days</option>
+            <option value="month">Last 30 days</option>
+            <option value="quarter">Last 90 days</option>
+            <option value="year">Last year</option>
+            <option value="older">Older than a year</option>
+          </select>
+          <select id="f-basis" aria-label="Age counts from">
+            <option value="modified">by date modified</option>
+            <option value="added">by date added</option>
+          </select>
+        </label>
+        <label class="check">Rating
+          <select id="f-stars">
+            <option value="any">Any rating</option>
+            <option value="unrated">Unrated</option>
+            <option value="rated">Rated (any)</option>
+            <option value="0">0 stars</option>
+            <option value="1+">★ 1 star or more</option>
+            <option value="2+">★★ 2 stars or more</option>
+            <option value="3+">★★★ 3 stars or more</option>
+            <option value="4+">★★★★ 4 stars or more</option>
+            <option value="5">★★★★★ 5 stars</option>
+          </select>
+        </label>
+        <button id="f-clear" type="button" class="secondary small" hidden>Clear filters</button>
+      </div>
+      <div id="scroller" class="scroller" tabindex="-1">
+        <div id="spacer" class="spacer"><div id="cells" class="cells"></div></div>
+        <p id="rows-empty" class="muted pad" hidden></p>
+      </div>
+      <div class="stats-bar">
+        <p id="stats" class="muted">-</p>
+        <button id="rescan-all" type="button" class="secondary small" title="Look again in every folder for files added, moved or removed while the app was open">Rescan</button>
+      </div>
+    </section>
+  </div>
+</div>
+<dialog id="folders-dialog" aria-labelledby="folders-h">
+  <h2 id="folders-h">Manage folders</h2>
+  <p class="muted small-text">Folders the library searches for STL and 3MF files. Removing a folder never touches the files on disk.</p>
+  <ul id="folder-list" class="folder-list"></ul>
+  <p id="folder-empty" class="muted pad" hidden>No folders yet. Choose “Add folder…” to scan one.</p>
+  <p id="folder-message" class="message error" role="alert" hidden></p>
+  <div class="dialog-actions">
+    <button id="folders-add" type="button">Add folder…</button>
+    <button id="folders-close" type="button" class="secondary">Close</button>
+  </div>
+</dialog>
+<script src="selection.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
