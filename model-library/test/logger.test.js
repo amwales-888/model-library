@@ -6,7 +6,7 @@ const os = require('node:os');
 const path = require('node:path');
 const crypto = require('node:crypto');
 
-const { createLogger, formatLine, timestamp } = require('../src/logger');
+const { createLogger, formatLine, formatValue, timestamp } = require('../src/logger');
 const { openDb, addRoot } = require('../src/db');
 const { scanRoot } = require('../src/indexer');
 const { ThumbnailQueue } = require('../src/thumbnail-queue');
@@ -61,7 +61,7 @@ test('a scan logs its start, every file hashed with its hash, problems, and the 
   assert.equal(lines.filter((l) => / scan\.end /.test(l)).length, 2);
   const hashed = lines.filter((l) => / INFO  hash /.test(l));
   assert.equal(hashed.length, 2);
-  assert.ok(hashed.some((l) => l.includes('path=' + path.join(root, 'a.stl')) && l.includes('sha256=' + sha('solid a')) && /ms=\d+/.test(l)));
+  assert.ok(hashed.some((l) => l.includes('path=' + formatValue(path.join(root, 'a.stl'))) && l.includes('sha256=' + sha('solid a')) && /ms=\d+/.test(l)));
   const problem = lines.find((l) => / WARN  problem /.test(l));
   assert.ok(problem && problem.includes('broken.zip'));
   const ends = lines.filter((l) => / scan\.end /.test(l));
@@ -92,8 +92,8 @@ test('the thumbnail queue logs the time for each thumbnail, failures, and the to
   log.close();
   const text = fs.readFileSync(file, 'utf8');
   assert.match(text, / INFO  thumbs\.start pending=2/);
-  assert.match(text, / INFO  thumb\.ok path=\S*good\.stl sha256=[0-9a-f]{64} ms=\d+ read_ms=\d+/);
-  assert.match(text, / WARN  thumb\.fail path=\S*bad\.stl sha256=[0-9a-f]{64} ms=\d+ message="cannot parse this"/);
+  assert.match(text, / INFO  thumb\.ok path=[^\n]*?good\.stl"? sha256=[0-9a-f]{64} ms=\d+ read_ms=\d+/);
+  assert.match(text, / WARN  thumb\.fail path=[^\n]*?bad\.stl"? sha256=[0-9a-f]{64} ms=\d+ message="cannot parse this"/);
   assert.match(text, / WARN  thumbs\.end duration_ms=\d+ made=1 failed=1/);
   fs.rmSync(dir, { recursive: true, force: true });
 });

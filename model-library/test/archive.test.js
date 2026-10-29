@@ -151,10 +151,11 @@ test('a damaged archive is reported and does not stop the scan', { skip }, async
 
 test('a model inside an archive can be read back by the viewer and the thumbnail queue', { skip }, async () => {
   const lib = makeLibrary();
-  const sevenZ = write7z(lib.at('a.7z'), { 'dir/one.stl': 'solid one', 'two.stl': 'solid two', 'odd[1]*name.stl': 'solid odd' });
+  const odd = process.platform === 'win32' ? 'odd[1]#name.stl' : 'odd[1]*name.stl';   // Windows does not allow * in a file name
+  const sevenZ = write7z(lib.at('a.7z'), { 'dir/one.stl': 'solid one', 'two.stl': 'solid two', [odd]: 'solid odd' });
   const rar = writeRar5(lib.at('b.rar'), { 'x/three.stl': 'solid three' });
   assert.equal((await readModelBytes({ path: path.join(sevenZ, 'dir', 'one.stl'), container: sevenZ, entry: 'dir/one.stl' })).toString(), 'solid one');
-  assert.equal((await readModelBytes({ container: sevenZ, entry: 'odd[1]*name.stl' })).toString(), 'solid odd');
+  assert.equal((await readModelBytes({ container: sevenZ, entry: odd })).toString(), 'solid odd');
   assert.equal((await readModelBytes({ container: rar, entry: 'x/three.stl' })).toString(), 'solid three');
   await assert.rejects(readArchiveEntry(sevenZ, 'gone.stl'), { code: 'ENTRY_NOT_FOUND' });
   await assert.rejects(readArchiveEntry(sevenZ, 'two.stl', { maxBytes: 3 }), { code: 'TOO_LARGE' });

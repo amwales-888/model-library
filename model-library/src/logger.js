@@ -27,7 +27,7 @@ function formatValue(value) {
   if (value === undefined || value === null) return '-';
   if (typeof value === 'number' || typeof value === 'boolean') return String(value);
   const text = value instanceof Error ? value.message : String(value);
-  return /^[\w.\-/:+@%]+$/.test(text) ? text : JSON.stringify(text);   // JSON also protects against line breaks
+  return /^[\w.\-/\\:+@%]+$/.test(text) ? text : JSON.stringify(text);   // JSON also protects against line breaks
 }
 
 function formatLine(level, event, fields, date) {
@@ -106,4 +106,4 @@ function createLogger({ file, maxBytes = 10 * 1024 * 1024, keep = 5, flushMs = 2
   };
 }
 
-module.exports = { createLogger, nullLogger, formatLine, timestamp };
+module.exports = { createLogger, nullLogger, formatLine, formatValue, timestamp };
