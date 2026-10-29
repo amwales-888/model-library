@@ -47,7 +47,7 @@
       "category": "Graphics",
       "icon": "build/icon.png",
       "synopsis": "Browse STL and 3MF files by thumbnail",
-      "maintainer": "Model Library <noreply@example.invalid>",
+      "maintainer": "Angelo Masci <angelo.a.masci@gmail.com>",
       "syncDesktopName": true,
       "executableName": "model-library",
       "desktop": {
@@ -129,7 +129,7 @@
     }
   },
   "desktopName": "model-library.desktop",
-  "homepage": "https://example.invalid/model-library",
+  "homepage": "https://github.com/amwales-888/model-library",
   "dependencies": {
     "yauzl": "^3.4.0"
   }
