@@ -1,25 +1,35 @@
-# model-library
-An application to help manage collections of STL/3MF models, most importantly saving thumbnails that can be re-oriented.
+# Xandrite
 
-# TLDR
-This application was completely written by AI. I was curious about how far the technology had progressed and, after talking to a number of people whose opinions I respect, I thought I would drop my prejudices and give it a try.
+*Every model has a side worth seeing.*
 
-![wibble](images/Capture.JPG)
+Xandrite is a Windows and Linux desktop app for organising a large collection of `.stl` and `.3mf` files. Every file is identified by its
+SHA-256, so it can be found again after it is moved or renamed.
+
+**Get the installer [Xandrite ![Latest release](https://img.shields.io/github/v/release/amwales-888/model-library)](https://github.com/amwales-888/model-library/releases/latest)**
+
+Q. Why do I need this?</br>
+A. You have thousands of models, squirelled away in directory you never look in, in multi-gigabyte .zip archives that are a pain to unpack and look through, but you know that somewhere in there is a hidden gem, you just lost it. Xandrite will help you find things and organise them.
 
 Q. How do I run it?</BR>
-A. I have included installers for Linux and Windows, you can find the latest here - [![Latest release](https://img.shields.io/github/v/release/amwales-888/model-library)](https://github.com/amwales-888/model-library/releases/latest)
+A. Get the installer, it's pretty simple.
+
+Q. WHere's the user manual?</BR>
+A. Take look here **[Getting started guide](docs/getting-started.md)** (with screenshots).
+
+Q. I'm a developer, give me a sdecription of how it works and show me how to build it locally.</BR>
+A. Take look here **[Getting started guide](docs/getting-started.md)**.
 
 Q. Hang on did you say you can change the orientation of the model in the thumbnail and it will remember it?</BR>
 A. I didn't but YES you can.
 
-Q. Woah, so if I have a single 12GB .7z archive split over multiple files, I can browse the contents and generate thumbnails and download them invidually any time later.</BR>
-A. Again, YES YOU CAN!
+![wibble](images/Capture.JPG)
 
-For those interested in a user name, details on its architecture and how to build it yourself from source, take a look at the [Getting started guide](model-library/docs/getting-started.md)
+# TLDR - Disclaimer and Descent into Madness
+This application was completely written by AI. I was curious about how far the technology had progressed and, after talking to a number of people whose opinions I respect, I thought I would drop my prejudices and give it a try.
 
 --------------------------
 
-Below follows my personal descnt into madness.
+Below follows my personal descnt into madness, I lost track of time.
 
 I setup an account with Claude, paid £18 for a monthly subscription and started with Claude Sonnet 5.5 paying attention to the Usage limits, I had heard horror stories.
 
@@ -59,3 +69,5 @@ How long did it take to descend into this madness? Oh I spent a few hours on Sun
 Oh today, Tuesday evening Claude built the actions to instruct GitHub how to generate the installers when a Tag is pushed, I am at a loss for words.
 
 To show how bad it got, I started on Tuesday evening, NOT Sunday and today is Thursday, NOT Tuesday. I am retired and get weekdays muddled now.
+
+Ok so installers done, what about branding, all things need a name. Model-Library isnt going to cut it. I want something that not confused by something else when you search for it. Claude gave me some ideas and not after that, I'm not sure, sounds a little harsh, like a detergant. I'll give it a few days and see...
