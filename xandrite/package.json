@@ -1,0 +1,136 @@
+{
+  "name": "xandrite",
+  "version": "0.1.0",
+  "description": "Xandrite: every model has a side worth seeing. Browse your STL and 3MF files, including those inside zip, 7z and rar archives, by thumbnail.",
+  "main": "main.js",
+  "private": true,
+  "scripts": {
+    "start": "electron .",
+    "start:safe": "electron . --no-sandbox --disable-gpu",
+    "test": "node --test",
+    "pack": "electron-builder --dir",
+    "dist:linux": "electron-builder --linux",
+    "vendor": "node scripts/vendor-three.js",
+    "dist:win": "electron-builder --win nsis"
+  },
+  "devDependencies": {
+    "electron": "^45.1.0",
+    "electron-builder": "^26.18.0",
+    "fflate": "^0.8.3",
+    "three": "0.160.0"
+  },
+  "author": "Angelo Masci <angelo.a.masci@gmail.com>",
+  "build": {
+    "appId": "io.github.amwales888.xandrite",
+    "productName": "Xandrite",
+    "artifactName": "Xandrite-${version}-${arch}.${ext}",
+    "directories": {
+      "output": "dist",
+      "buildResources": "build"
+    },
+    "files": [
+      "main.js",
+      "preload.js",
+      "thumb-preload.js",
+      "viewer-preload.js",
+      "src/**/*",
+      "renderer/**/*",
+      "package.json",
+      "!**/*.map"
+    ],
+    "electronVersion": "45.1.0",
+    "linux": {
+      "target": [
+        "AppImage",
+        "deb"
+      ],
+      "category": "Graphics",
+      "icon": "build/icon.png",
+      "synopsis": "Browse STL and 3MF files by thumbnail",
+      "maintainer": "Angelo Masci <angelo.a.masci@gmail.com>",
+      "syncDesktopName": true,
+      "executableName": "xandrite",
+      "desktop": {
+        "entry": {
+          "Name": "Xandrite"
+        }
+      },
+      "extraResources": [
+        {
+          "from": "vendor/7zip/linux-${arch}",
+          "to": "7zip",
+          "filter": [
+            "7zz"
+          ]
+        },
+        {
+          "from": "vendor/7zip/License.txt",
+          "to": "7zip/License.txt"
+        }
+      ]
+    },
+    "publish": null,
+    "deb": {
+      "depends": [
+        "libgtk-3-0",
+        "libnss3",
+        "libxss1",
+        "libasound2t64 | libasound2"
+      ]
+    },
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "build/icon.ico",
+      "extraResources": [
+        {
+          "from": "vendor/7zip/win",
+          "to": "7zip",
+          "filter": [
+            "7z.exe",
+            "7z.dll"
+          ]
+        },
+        {
+          "from": "vendor/7zip/License.txt",
+          "to": "7zip/License.txt"
+        }
+      ]
+    },
+    "mac": {
+      "extraResources": [
+        {
+          "from": "vendor/7zip/mac",
+          "to": "7zip",
+          "filter": [
+            "7zz"
+          ]
+        },
+        {
+          "from": "vendor/7zip/License.txt",
+          "to": "7zip/License.txt"
+        }
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Xandrite",
+      "artifactName": "Xandrite-Setup-${version}.${ext}"
+    }
+  },
+  "desktopName": "xandrite.desktop",
+  "homepage": "https://github.com/amwales-888/model-library",
+  "dependencies": {
+    "yauzl": "^3.4.0"
+  }
+}

@@ -9,7 +9,7 @@ jobs:
     runs-on: windows-latest
     defaults:
       run:
-        working-directory: model-library
+        working-directory: xandrite
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v5
@@ -21,13 +21,13 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: installer-windows
-          path: model-library/dist/ModelLibrary-Setup-*.exe
+          path: xandrite/dist/Xandrite-Setup-*.exe
 
   linux:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: model-library
+        working-directory: xandrite
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v5
@@ -40,8 +40,8 @@ jobs:
         with:
           name: installer-linux
           path: |
-            model-library/dist/*.deb
-            model-library/dist/*.AppImage
+            xandrite/dist/*.deb
+            xandrite/dist/*.AppImage
 
   release:
     # Only for a tag such as v0.1.0: collects the installers from both jobs into one GitHub Release.
