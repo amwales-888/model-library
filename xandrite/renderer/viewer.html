@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Model Thumbnailer</title>
+<title>Xandrite Thumbnailer</title>
 
 <!-- three.js is loaded from renderer/vendor (copied by scripts/vendor-three.js) as ES modules. The import map lets the code below say
      "three" and "three/addons/..." instead of long paths. -->
@@ -79,11 +79,14 @@
   }
   .viewer.dragging { border-color: var(--accent); outline: 2px dashed var(--accent); outline-offset: -8px; }
   .viewer canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
-  .hint {
+  .viewer-foot {
     position: absolute; left: 12px; bottom: 10px; right: 12px;
+    display: flex; align-items: center; justify-content: space-between; gap: 12px;
     font-family: var(--font-mono); font-size: 12px; color: var(--muted);
-    pointer-events: none;
+    pointer-events: none;   /* the model underneath can still be dragged */
   }
+  .viewer-foot label { pointer-events: auto; display: flex; align-items: center; gap: 6px; white-space: nowrap; cursor: pointer; }
+  [hidden] { display: none !important; }
 
   .panel { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
   .row { display: flex; flex-wrap: wrap; gap: 10px 14px; align-items: center; }
@@ -116,7 +119,9 @@
   dd { margin: 0; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
   .mono { font-family: var(--font-mono); font-size: 12px; }
 
-  #status { min-height: 1.5em; font-size: 13.5px; color: var(--muted); }
+  .file-head { display: flex; align-items: baseline; gap: 10px; margin: 0 0 8px; }
+  .file-head h2 { margin: 0; flex: none; }
+  #status { min-height: 1.5em; font-size: 13.5px; color: var(--muted); min-width: 0; overflow-wrap: anywhere; }
   #status.error { color: var(--danger); }
 </style>
 </head>
@@ -124,26 +129,27 @@
 
 <div class="wrap">
   <header>
-    <h1>Model Thumbnailer</h1>
-    <p>Drop an STL or 3MF file onto the viewer. It is parsed in your browser, shown in 3D, and rendered to a small PNG thumbnail. Nothing is uploaded.</p>
+    <h1>Xandrite Thumbnailer</h1>
+    <p id="intro">Drop an STL or 3MF file onto the viewer. It is parsed in your browser, shown in 3D, and rendered to a small PNG thumbnail. Nothing is uploaded.</p>
   </header>
 
   <div class="app">
     <div class="viewer" id="viewer">
       <canvas id="view" aria-label="3D model viewer"></canvas>
-      <div class="hint">Drag to orbit · scroll to zoom · right-drag to pan</div>
+      <div class="viewer-foot">
+        <span>Drag to orbit · scroll to zoom · right-drag to pan</span>
+        <label><input id="zup" type="checkbox" checked>Z is up</label>
+      </div>
     </div>
 
     <div class="panel">
       <div class="row">
         <label class="btn" for="file" role="button" tabindex="0" id="pick">Choose file</label>
         <input id="file" type="file" accept=".stl,.3mf">
-        <button class="secondary" id="reset" type="button">Reset view</button>
       </div>
-      <div id="status" role="status" aria-live="polite"></div>
 
       <section>
-        <h2>File</h2>
+        <div class="file-head"><h2>File</h2><div id="status" role="status" aria-live="polite"></div></div>
         <dl>
           <dt>Name</dt><dd id="i-name">-</dd>
           <dt>Format</dt><dd id="i-fmt">-</dd>
@@ -155,7 +161,6 @@
           <dd id="rating-cell" hidden>
             <select id="rating" aria-labelledby="rating-label" disabled>
               <option value="">Unrated</option>
-              <option value="0">0 stars</option>
               <option value="1">★ 1 star</option>
               <option value="2">★★ 2 stars</option>
               <option value="3">★★★ 3 stars</option>
@@ -169,14 +174,11 @@
 
       <section>
         <h2>Thumbnail</h2>
-        <p id="thumb-help" style="margin:0 0 10px;font-size:13px;color:var(--muted)">Orbit, zoom or pan until the model looks right, then update the thumbnail.</p>
-        <div class="row" style="margin-bottom:12px">
-          <label><input id="zup" type="checkbox" checked>Z is up</label>
+        <div class="row">
+          <button class="secondary" id="reset" type="button">Reset view</button>
+          <button id="update" type="button" disabled hidden>Update</button>
         </div>
-        <div class="row" id="update-row" hidden>
-          <button id="update" type="button" disabled>Update</button>
-          <span id="update-note" role="status" aria-live="polite" style="font-size:13px;color:var(--muted)"></span>
-        </div>
+        <div id="update-note" role="status" aria-live="polite" style="margin-top:10px;font-size:13px;color:var(--muted)"></div>
         <details id="advanced" style="margin-top:14px">
           <summary style="cursor:pointer;font-size:13px;color:var(--muted)">Advanced: download a PNG</summary>
           <div class="row" style="margin:10px 0">

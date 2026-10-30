@@ -66,7 +66,13 @@
     <div id="message" role="status" aria-live="polite" class="message" hidden><span id="message-text"></span><button id="message-close" type="button" class="message-close" aria-label="Dismiss this message" title="Dismiss"></button></div>
   </div>
 
-  <div class="main">
+  <div class="main" id="main">
+    <section id="welcome" class="welcome" aria-labelledby="welcome-h" hidden>
+      <img src="logo.svg" alt="" width="120" height="99">
+      <h2 id="welcome-h">Every model has a side worth seeing.</h2>
+      <p>Add a folder of STL and 3MF files and Xandrite finds them all, including those inside zip, 7z and rar archives, and makes a thumbnail of each one.</p>
+      <button id="welcome-add" type="button">Add folder…</button>
+    </section>
     <nav class="tree-pane" aria-label="Folders">
       <div id="tree" role="tree"></div>
       <p id="roots-empty" class="muted pad" hidden>No folders yet. Choose “Add folder…” to scan one.</p>
@@ -125,7 +131,6 @@
             <option value="any">Any rating</option>
             <option value="unrated">Unrated</option>
             <option value="rated">Rated (any)</option>
-            <option value="0">0 stars</option>
             <option value="1+">★ 1 star or more</option>
             <option value="2+">★★ 2 stars or more</option>
             <option value="3+">★★★ 3 stars or more</option>
@@ -141,7 +146,7 @@
       </div>
       <div class="stats-bar">
         <p id="stats" class="muted">-</p>
-        <button id="rescan-all" type="button" class="secondary small" title="Look again in every folder for files added, moved or removed while the app was open">Rescan</button>
+        <button id="rescan-all" type="button" class="secondary small" title="Look again in every folder for files added, moved or removed while the app was open">Rescan All</button>
       </div>
     </section>
   </div>

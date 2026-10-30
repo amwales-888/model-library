@@ -11,7 +11,7 @@ const plural = (n, one, many) => (n === 1 ? one : many);
 function itemMenuTemplate(info, act) {
   const n = Math.max(1, Math.floor(info.count) || 1);
   const stars = [{ label: 'Unrated', click: act('rate', { stars: null }) }];
-  for (let k = 0; k <= 5; k++) stars.push({ label: k === 0 ? '0 stars' : '★'.repeat(k) + ' ' + k + ' ' + plural(k, 'star', 'stars'), click: act('rate', { stars: k }) });
+  for (let k = 1; k <= 5; k++) stars.push({ label: '★'.repeat(k) + ' ' + k + ' ' + plural(k, 'star', 'stars'), click: act('rate', { stars: k }) });
   return [
     { label: 'Open in viewer', enabled: n === 1, click: act('open') },
     { label: 'Show in folder', enabled: info.canReveal !== false, click: act('reveal') },

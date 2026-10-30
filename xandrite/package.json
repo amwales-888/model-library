@@ -1,6 +1,6 @@
 {
   "name": "xandrite",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Xandrite: every model has a side worth seeing. Browse your STL and 3MF files, including those inside zip, 7z and rar archives, by thumbnail.",
   "main": "main.js",
   "private": true,

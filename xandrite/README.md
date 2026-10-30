@@ -55,14 +55,13 @@ work but are noticeably slower to scan, because every read crosses from Linux to
   "All files" or any folder. *Include subfolders* switches between everything below a folder and its own files only;
   *Show missing* includes files that have disappeared; the **Size** slider changes the thumbnail size. The grid only
   creates the cells that are on screen, so it stays fast with tens of thousands of files.
-- **Ratings.** In the viewer, the File panel has a **Rating** dropdown: Unrated, 0, 1, 2, 3, 4 or 5 stars (0 stars is a
-  rating, not the same as unrated). It is saved in the database against the file's hash, so it follows the file around, and
-  the stars show on the thumbnail in the library straight away.
+- **Ratings.** In the viewer, the File panel has a **Rating** dropdown: Unrated, or 1 to 5 stars. It is saved in the database against the file's hash, so it follows the file around, and
+  the stars show on the thumbnail in the library straight away. In the library, the left and right arrow keys move the selection, and the keys 1 to 5 rate the selected models (0 clears the rating).
 - **Filters** (the bar above the grid) narrow the list by **Size** (under 100 KB up to over 50 MB), **Age** (last 24 hours up
-  to older than a year, counted from the date modified or the date added) and **Rating** (unrated, rated, 0 stars, or N stars
+  to older than a year, counted from the date modified or the date added) and **Rating** (unrated, rated, or N stars
   and up). They combine with each other, with the folder you selected and with the search box. "Clear filters" resets them.
 - **Order by** sorts the grid by *Name* (the file's own name), *Folder and name*, *Date modified* (when the file last
-  changed on disk), *Date added* (when the library first saw that content), *File size* or *Rating* (unrated files count as lower than 0 stars). The button beside it reverses
+  changed on disk), *Date added* (when the library first saw that content), *File size* or *Rating* (unrated files come last). The button beside it reverses
   the order. Date orderings show the date on each thumbnail. Your choice is remembered.
 - **Click a thumbnail** to open that file in the viewer window (the same window is reused for the next click).
 - In the viewer, orbit, zoom or pan, then press **Update**: the library's thumbnail for that file is replaced with the
@@ -77,10 +76,12 @@ work but are noticeably slower to scan, because every read crosses from Linux to
   only if a new folder was added. Removing only takes the folder out of the library; your files are never touched, and
   by default their thumbnails and saved views are kept, so adding the folder back restores them. Tick the option in the
   confirmation to delete those thumbnails, views and ratings too (files that also exist in another folder keep theirs).
+- With no folders in the library, the window shows a welcome screen with an **Add folder…** button instead of the folder
+  tree and the grid; they appear as soon as a folder is added.
 - **Add folder…** opens a folder picker and scans the folder straight away.
-- The **Rescan** button at the bottom right of the grid rescans every folder in the library, to pick up files and folders
+- The **Rescan All** button at the bottom right of the grid rescans every folder in the library, to pick up files and folders
   added, moved or removed while the app was open. An individual folder can be rescanned from its right-click menu in the tree.
-- **Rescan** (per folder) brings a folder up to date. Files whose path, size and modified time have not changed are not read again.
+- **Rescan this folder** (right-click a folder in the tree) brings a folder up to date. Files whose path, size and modified time have not changed are not read again.
 - A file whose content appears at a new path, with the old path gone, is counted as **moved**. It keeps its hash.
 - Files that disappear are marked **missing**, not deleted, so you can see what went and the record is still there if it returns.
 - **Thumbnails** are made automatically in the background after each scan (512 px, Z-up corner view). Use **Pause** /
@@ -139,7 +140,7 @@ Folders are searched for `.zip`, `.7z` and `.rar` files too (Preferences → **S
   old-style `name.rar` with `name.r00`, `name.r01`... The set is opened through its first part and appears once, as
   that file. If any part's size or date changes, the set is read again; a missing part is reported as a problem and
   the earlier results are kept. Keep all the parts in the same folder.
-- Switching the setting off and pressing **Rescan** marks models found only inside archives as missing; switching it
+- Switching the setting off and pressing **Rescan All** marks models found only inside archives as missing; switching it
   on again and rescanning brings them back.
 - 7-Zip is free software (mostly LGPL; its RAR code has the unRAR restriction, which allows reading only). Its licence
   is in `vendor/7zip/License.txt` and is copied into the installed app. `XANDRITE_7Z` can point at a different
@@ -154,7 +155,7 @@ The app keeps a plain-text log, one event per line, each starting with a local t
 | Event | What it records |
 | --- | --- |
 | `app.start`, `app.quit` | version, platform, database and 7-Zip location |
-| `rescan.start`, `rescan.end` | the Rescan button: when it began, how long it took (`duration_ms`), folders, errors |
+| `rescan.start`, `rescan.end` | the Rescan All button: when it began, how long it took (`duration_ms`), folders, errors |
 | `scan.start`, `scan.end` | one folder: when, `duration_ms`, files found / hashed / unchanged / new / moved / missing, archives, errors |
 | `hash` | every file or archive entry that was read: `path`, `sha256`, `size`, `ms` taken (plus `archive` for entries inside one) |
 | `archive` | an archive that was read: models found, nested archives skipped, parts, `ms` |
@@ -201,10 +202,10 @@ npm install
 npm run dist:linux        # writes dist/Xandrite-<version>-amd64.deb and ...-x86_64.AppImage
 ```
 
-- **.deb** (recommended on Ubuntu): `sudo apt install ./dist/Xandrite-0.1.0-amd64.deb`, then start "Xandrite"
+- **.deb** (recommended on Ubuntu): `sudo apt install ./dist/Xandrite-0.2.0-amd64.deb`, then start "Xandrite"
   from the app menu or run `xandrite`. The package sets up the Chromium sandbox for your system, including
   Ubuntu's AppArmor rules.
-- **AppImage**: `chmod +x Xandrite-0.1.0-x86_64.AppImage && ./Xandrite-0.1.0-x86_64.AppImage`. It needs FUSE
+- **AppImage**: `chmod +x Xandrite-0.2.0-x86_64.AppImage && ./Xandrite-0.2.0-x86_64.AppImage`. It needs FUSE
   (`sudo apt install libfuse2t64` on Ubuntu 24 and later), or run it with `--appimage-extract-and-run`. If it stops with
   a sandbox error, start it with `--no-sandbox`.
 - Under WSL2 the window appears through WSLg, the same as `npm start`.

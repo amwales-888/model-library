@@ -48,6 +48,8 @@ async function refreshTree() {
   const tree = $('tree');
   tree.replaceChildren();
   $('roots-empty').hidden = roots.length > 0;
+  $('main').classList.toggle('empty', roots.length === 0);   // nothing in the library yet: show the welcome screen instead of the tree and grid
+  $('welcome').hidden = roots.length > 0;
   $('rescan-all').disabled = roots.length === 0 || state.scanning || state.rescanningAll;
   if (!roots.length) return;
   const total = roots.reduce((n, r) => n + r.count, 0);
@@ -228,6 +230,7 @@ async function rescanAll() {
   }
 }
 $('rescan-all').addEventListener('click', rescanAll);
+$('welcome-add').addEventListener('click', () => $('add').click());
 
 /* ---------- stats ---------- */
 async function refreshStats() {
@@ -498,7 +501,24 @@ document.addEventListener('keydown', (e) => {
   if ($('folders-dialog').open || typing) return;
   if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'a') { e.preventDefault(); sel.all(state.total); selectionChanged(); }
   else if (e.key === 'Escape' && sel.count) { sel.clear(); selectionChanged(); }
+  else if ((e.key === 'ArrowLeft' || e.key === 'ArrowRight') && !e.ctrlKey && !e.metaKey && !e.altKey && state.total > 0) {
+    e.preventDefault();
+    const step = e.key === 'ArrowLeft' ? -1 : 1;
+    const from = sel.anchor === null ? (step > 0 ? -1 : state.total) : sel.anchor;   // nothing selected yet: start at the first or last model
+    const i = Math.min(state.total - 1, Math.max(0, from + step));
+    sel.only(i); selectionChanged(); scrollToIndex(i);
+  }
+  else if (/^[0-5]$/.test(e.key) && !e.ctrlKey && !e.metaKey && !e.altKey && sel.count) {
+    e.preventDefault();
+    handleMenuAction({ action: 'rate', stars: e.key === '0' ? null : Number(e.key) });   // 0 means unrated
+  }
 });
+// Scrolls the grid just enough to bring one model into view.
+function scrollToIndex(i) {
+  const top = Math.floor(i / layout.cols) * layout.rowH;
+  if (top < scroller.scrollTop) scroller.scrollTop = top;
+  else if (top + layout.cellH > scroller.scrollTop + scroller.clientHeight) scroller.scrollTop = top + layout.cellH - scroller.clientHeight;
+}
 
 // The selection as the main process wants it: the query that produced the list, and which positions are selected.
 const selectionPayload = () => ({ query: queryParams(), blocks: sel.blocks() });
@@ -686,8 +706,8 @@ $('toggle-zips').addEventListener('click', async () => {
   showZipSetting(saved.scanZips);
   setMenu(false);
   showMessage(saved.scanZips
-    ? 'Archives (.zip, .7z, .rar) will be searched from the next scan. Press Rescan to look inside them now.'
-    : 'Archives will no longer be searched. Press Rescan to apply this: models found only inside archives will then be marked missing.');
+    ? 'Archives (.zip, .7z, .rar) will be searched from the next scan. Press Rescan All to look inside them now.'
+    : 'Archives will no longer be searched. Press Rescan All to apply this: models found only inside archives will then be marked missing.');
 });
 window.library.getSettings().then((s) => showZipSetting(s.scanZips));
 

@@ -70,8 +70,8 @@ test('the item menu changes its wording for several models, and disables what ca
   assert.ok(labels(many).includes('Regenerate 1,200 thumbnails'));
   assert.equal(many.find((i) => i.label === 'Revert to automatic view').enabled, true);
   const rate = many.find((i) => i.submenu).submenu;
-  assert.deepEqual(rate.map((i) => i.label), ['Unrated', '0 stars', '★ 1 star', '★★ 2 stars', '★★★ 3 stars', '★★★★ 4 stars', '★★★★★ 5 stars']);
-  rate[0].click(); rate[6].click();
+  assert.deepEqual(rate.map((i) => i.label), ['Unrated', '★ 1 star', '★★ 2 stars', '★★★ 3 stars', '★★★★ 4 stars', '★★★★★ 5 stars']);
+  rate[0].click(); rate[5].click();
   assert.deepEqual(acted, [['rate', { stars: null }], ['rate', { stars: 5 }]]);
 });
 

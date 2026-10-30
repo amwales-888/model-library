@@ -191,7 +191,7 @@ let openedFromLibrary = false; // only files opened from the library can be rate
 function showRating() {
   const select = $('rating');
   for (const id of ['rating-label', 'rating-cell']) $(id).hidden = !canUpdate;
-  select.value = libraryRating === null ? '' : String(libraryRating);
+  select.value = libraryRating ? String(libraryRating) : '';   // null (or a legacy 0) shows as Unrated
   select.disabled = !(canUpdate && openedFromLibrary && currentSha);
   select.title = openedFromLibrary ? '' : 'Open the file from the library to rate it.';
 }
@@ -207,7 +207,7 @@ $('rating').addEventListener('change', async () => {
 
 let hasCustomView = false;   // the library holds a view set up by hand for this file
 function updateUpdateButton() {
-  $('update-row').hidden = !canUpdate;
+  $('update').hidden = !canUpdate;
   $('revert-row').hidden = !(canUpdate && hasCustomView);
   $('advanced').open = $('advanced').open || !canUpdate;   // without the library, the download is the only action
   if (canUpdate) $('update').disabled = !(hasModel && currentSha);
@@ -324,16 +324,56 @@ async function handleFile(file, stored = null) {
   }
 }
 
+/**
+ * The Xandrite diamond: an eight-sided brilliant cut with its point down (Z is up), coloured like the logo, teal on one
+ * side and amber on the other. It is shown until a model arrives.
+ */
+function makeDiamond() {
+  const n = 8, girdleR = 10, tableR = 5.8, zTable = 6, zCulet = -11;
+  const ring = (radius, z, turn) => Array.from({ length: n }, (_, k) => {
+    const a = (k + turn) * 2 * Math.PI / n;
+    return new THREE.Vector3(radius * Math.cos(a), radius * Math.sin(a), z);
+  });
+  const girdle = ring(girdleR, 0, 0);
+  const table = ring(tableR, zTable, 0.5);   // turned half a step, so the crown gets kite and star facets
+  const culet = new THREE.Vector3(0, 0, zCulet);
+  const tableCentre = new THREE.Vector3(0, 0, zTable);
+  const facets = [];   // [a, b, c, [left colour, right colour]]
+  const TABLE = [0xd5dade, 0xd5dade], CROWN = [0x9aa3aa, 0xc2c9ce], PAVILION = [0x6b757c, 0x8a949b];   // greys, so it is calm when the real model replaces it
+  for (let k = 0; k < n; k++) {
+    const k1 = (k + 1) % n;
+    facets.push([girdle[k], girdle[k1], culet, PAVILION]);
+    facets.push([table[k], table[k1], tableCentre, TABLE]);
+    facets.push([girdle[k], girdle[k1], table[k], CROWN]);
+    facets.push([table[k], table[k1], girdle[k1], CROWN]);
+  }
+  const inside = new THREE.Vector3(0, 0, -2);
+  const positions = [];
+  const colours = [];
+  const colour = new THREE.Color();
+  for (const [a, b, c, palette] of facets) {
+    const centroid = a.clone().add(b).add(c).divideScalar(3);
+    const normal = b.clone().sub(a).cross(c.clone().sub(a));
+    const [p, q] = normal.dot(centroid.clone().sub(inside)) > 0 ? [b, c] : [c, b];   // wind every facet to face outwards
+    colour.setHex(centroid.x < 0 ? palette[0] : palette[1]);
+    for (const v of [a, p, q]) { positions.push(v.x, v.y, v.z); colours.push(colour.r, colour.g, colour.b); }
+  }
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+  geo.setAttribute('color', new THREE.Float32BufferAttribute(colours, 3));
+  geo.computeVertexNormals();   // not indexed, so every facet is flat
+  return new THREE.Mesh(geo, makeMaterial(true));
+}
+
 function loadSample() {
   const token = ++loadToken;
-  const geo = new THREE.TorusKnotGeometry(10, 3.5, 200, 28);
-  const mesh = new THREE.Mesh(geo, makeMaterial(false));
-  currentBaseName = 'sample-torus-knot';
+  const mesh = makeDiamond();
+  currentBaseName = 'xandrite-diamond';
   currentFile = null;
   currentSha = null;
   showObject(mesh);
-  setInfo({ name: 'Sample shape (not a file)', format: '-', size: null, tris: countTriangles(mesh), sha: null });
-  setStatus('Showing a sample shape. Drop an STL or 3MF file to replace it.');
+  setInfo({ name: 'Xandrite diamond (sample, not a file)', format: '-', size: null, tris: countTriangles(mesh), sha: null });
+  setStatus(window.viewerHost ? 'Opening the model…' : 'Showing the Xandrite diamond as a sample. Drop an STL or 3MF file to replace it.');
 }
 
 /* ---------- wiring ---------- */
@@ -357,6 +397,13 @@ viewerEl.addEventListener('drop', (e) => {
   const f = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
   if (f) handleFile(f);
 });
+
+// Opened from the Xandrite window: the model is chosen there, so there is no file picker and the text says what this window is for.
+if (window.viewerHost) {
+  $('pick').parentElement.hidden = true;   // the row that held the Choose file button
+  $('file').disabled = true;
+  $('intro').textContent = 'Turn the model to the view that shows it best, then press Update to use that view as its thumbnail in your library.';
+}
 
 resize();
 loadSample();

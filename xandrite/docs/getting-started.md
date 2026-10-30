@@ -39,7 +39,7 @@ The screenshots use a small demo library of brackets, robots, tools, toys and va
 
 ## 1. Add a folder
 
-When the app first opens the library is empty. Click **Add folder…** (1) and choose the folder that holds your models.
+When you first open the app the library is empty, so it shows a welcome screen instead of the folder tree and the grid. Click **Add folder…** (1) and choose the folder that holds your models.
 Sub-folders are included. You can add as many folders as you like, including external drives and `Downloads`.
 
 ![First start](images/01-first-start.png)
@@ -73,7 +73,7 @@ A yellow message bar appears when a scan finishes, summing up what was found. Cl
 4. **Filters.** Narrow by size, age or rating.
 5. **The grid.** Each card shows the thumbnail, file name, type and size. The **Size** slider above the grid makes the
    thumbnails bigger or smaller.
-6. **Rescan.** Looks for new, changed and removed files. Do this after you add models to a folder.
+6. **Rescan All.** Looks again in every folder for new, changed and removed files. Do this after you add models to a folder you already have.
 
 Also on that toolbar:
 
@@ -86,7 +86,7 @@ The viewer is there to **re-orient a model so its thumbnail shows it clearly**. 
 wrong, so you open the model, turn it to the view that shows it best, and save that view as its thumbnail. It is not
 a modelling or editing tool, and it never changes the model file.
 
-**Double-click** a thumbnail to open the viewer.
+**Double-click** a thumbnail to open the viewer. It opens in its own window, the **Xandrite Thumbnailer**.
 
 ![The viewer](images/04-viewer.png)
 
@@ -94,7 +94,9 @@ a modelling or editing tool, and it never changes the model file.
 2. **Rating.** Click the stars to give the model 1–5 stars.
 3. **Update.** Saves the angle you are looking from as the model's thumbnail. This is the button the viewer exists
    for: use it once the model is turned the way you want it to be seen.
-4. **Reset view.** Goes back to the default angle.
+4. **Reset view.** Sits to the left of Update and goes back to the default angle.
+5. **Z is up.** At the bottom right of the 3D view. Leave it ticked for most models; untick it if a model was made
+   with Y pointing up and appears to lie on its side.
 
 Automatic thumbnails rarely show a model at its best. The model may be upside down, lying on its side, or showing
 you the back of its head. Rotate it until it looks right and press **Update**: from then on, that view is the
@@ -104,6 +106,8 @@ thumbnail. Select several models and right-click → **Regenerate thumbnails** t
 ## 5. Rate, order and filter
 
 Ratings are the quickest way to build a short list of favourites.
+
+You can rate from the keyboard too: the **left** and **right arrow** keys move the selection one model at a time, and the keys **1** to **5** give the selected models that many stars. Press **0** to clear a rating.
 
 ![Ordering and filtering by rating](images/05-order-and-filter.png)
 
@@ -202,7 +206,7 @@ To switch archive searching off, untick it in Preferences.
 - **Manage folders…** lists the folders in your library, with the number of files and when each was last scanned. Use
   **Add folder…** to add several folders in a row: the scan starts when you close the dialog, and only if you added
   a new folder. Use **Remove…** to take a folder out of the library. To pick up changes in folders you already have,
-  press **Rescan** on the main window.
+  press **Rescan All** on the main window.
 - **Show log file** opens the log, a plain-text record of each scan, hash, thumbnail and any error, with timestamps.
   Send it along when asking for help.
 - **Search inside archives** turns archive scanning on or off.
@@ -211,7 +215,7 @@ To switch archive searching off, untick it in Preferences.
 
 ## Tips and troubleshooting
 
-- **Added models are not showing.** Press **Rescan**.
+- **Added models are not showing.** Press **Rescan All**.
 - **Some thumbnails failed.** Press **Retry failed** in the Thumbnails panel, or look in the log for the reason.
 - **A model is missing after unplugging a drive.** It is kept in the library and shown under **Show missing** until
   the drive comes back and you rescan.
