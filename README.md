@@ -14,10 +14,10 @@ Q. How do I run it?</BR>
 A. Get the installer, it's pretty simple.
 
 Q. WHere's the user manual?</BR>
-A. Take look here **[Getting started guide](docs/getting-started.md)** (with screenshots).
+A. Take look here **[Getting started guide](xandrite/docs/getting-started.md)** (with screenshots).
 
 Q. I'm a developer, give me a sdecription of how it works and show me how to build it locally.</BR>
-A. Take look here **[Developer README](README.md)**.
+A. Take look here **[Developer README](xandrite/README.md)**.
 
 Q. Hang on did you say you can change the orientation of the model in the thumbnail and it will remember it?</BR>
 A. I didn't but YES you can.
