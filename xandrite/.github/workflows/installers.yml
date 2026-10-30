@@ -44,7 +44,7 @@ jobs:
             dist/*.AppImage
 
   release:
-    # Only for a tag such as v0.1.0: collects the installers from both jobs into one GitHub Release.
+    # Only for a tag such as v0.2.0: collects the installers from both jobs into one GitHub Release.
     if: startsWith(github.ref, 'refs/tags/')
     needs: [windows, linux]
     runs-on: ubuntu-latest

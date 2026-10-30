@@ -232,7 +232,7 @@ lives in `%APPDATA%\xandrite`, so updating or uninstalling does not delete it. W
 Windows SmartScreen shows "Windows protected your PC" (More info, then Run anyway).
 
 `.github/workflows/installers.yml` builds the Windows installer, the Linux `.deb` and the AppImage on GitHub: push a tag
-such as `v0.1.0` (or run the workflow by hand). A hand-run leaves the files as artifacts on the run; a tag also attaches
+such as `v0.2.0` (or run the workflow by hand). A hand-run leaves the files as artifacts on the run; a tag also attaches
 them to a GitHub Release. (If the project is in a sub-folder of your repository, set `working-directory` to that folder.)
 
 ## What comes next
