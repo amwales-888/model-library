@@ -1,0 +1,62 @@
+# Xandrite.NET releases: pushing a tag such as net-v0.4.0 builds, tests and publishes the app, makes Setup.exe and the
+# update packages with Velopack (vpk), and puts them on a GitHub release of that name. Installed copies of the app
+# find the new version there and offer "Restart to update".
+#
+# Tags start with "net-v" so they never start the Electron app's release workflow (tags "v*").
+name: Xandrite.NET release
+
+on:
+  push:
+    tags: ['net-v*']
+
+permissions:
+  contents: write   # to create the release and upload its files
+
+env:
+  VPK_VERSION: 1.2.161   # the same version as the Velopack package in src/Xandrite/Xandrite.csproj
+
+jobs:
+  release:
+    runs-on: windows-latest
+    defaults:
+      run:
+        working-directory: Xandrite.NET
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-dotnet@v5
+        with:
+          global-json-file: Xandrite.NET/global.json
+
+      - name: Version from the tag
+        id: version
+        shell: pwsh
+        run: |
+          $version = '${{ github.ref_name }}'.Substring('net-v'.Length)
+          if ($version -notmatch '^\d+\.\d+\.\d+(-[0-9A-Za-z.-]+)?$') { throw "The tag must look like net-v1.2.3, not ${{ github.ref_name }}" }
+          "version=$version" >> $env:GITHUB_OUTPUT
+
+      - name: Build and test
+        run: |
+          dotnet build Xandrite.slnx -c Release
+          dotnet test Xandrite.slnx -c Release --no-build
+
+      - name: Publish
+        run: dotnet publish src/Xandrite/Xandrite.csproj -c Release -r win-x64 --self-contained -p:Version=${{ steps.version.outputs.version }} -o publish
+
+      - name: Install vpk
+        run: dotnet tool install -g vpk --version ${{ env.VPK_VERSION }}
+
+      # The previous release, so vpk can make a small delta update from it (nothing to fetch the first time).
+      - name: Fetch the previous release
+        run: vpk download github --repoUrl ${{ github.server_url }}/${{ github.repository }} --token ${{ secrets.GITHUB_TOKEN }} -o Releases
+
+      - name: Pack
+        run: >
+          vpk pack --packId Xandrite.NET --packVersion ${{ steps.version.outputs.version }} --packDir publish
+          --mainExe Xandrite.exe --packTitle Xandrite --packAuthors "Angelo Masci" --icon src/Xandrite/Xandrite.ico -o Releases
+
+      - name: Upload to the release
+        run: >
+          vpk upload github --repoUrl ${{ github.server_url }}/${{ github.repository }} --token ${{ secrets.GITHUB_TOKEN }}
+          --publish --merge --releaseName "Xandrite.NET ${{ steps.version.outputs.version }}" --tag ${{ github.ref_name }} -o Releases

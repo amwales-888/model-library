@@ -139,6 +139,9 @@ public sealed class LibraryViewModel : ObservableObject, IAsyncDisposable
     public RelayCommand OpenDataFolderCommand { get; }
     public RelayCommand ShowLogCommand { get; }
 
+    /// <summary>New versions of the app (set by the app; the status bar and the Preferences menu show it).</summary>
+    public UpdateViewModel? Updates { get; set; }
+
     /// <summary>Preferences → Show log file: writes what is waiting, then opens the file.</summary>
     public void ShowLog()
     {

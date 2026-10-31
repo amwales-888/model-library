@@ -5,6 +5,7 @@ obj/
 [Rr]elease/
 x64/
 publish/
+/Releases/
 artifacts/
 TestResults/
 

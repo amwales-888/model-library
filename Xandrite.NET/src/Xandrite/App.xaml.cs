@@ -21,6 +21,7 @@ public partial class App : Application
     private LibraryDatabase? _db;
     private LibraryViewModel? _library;
     private ViewerViewModel? _viewer;
+    private UpdateViewModel? _updates;
     private ILog _log = NullLog.Instance;
 
     protected override void OnStartup(StartupEventArgs e)
@@ -48,6 +49,7 @@ public partial class App : Application
         WatchForCrashes();
         _log.Info("app.start",
             ("version", Assembly.GetExecutingAssembly().GetName().Version?.ToString(3)),
+            ("installed", Velopack.VelopackLocator.IsCurrentSet && Velopack.VelopackLocator.Current.CurrentlyInstalledVersion is not null),
             ("os", Environment.OSVersion.VersionString),
             ("dotnet", Environment.Version.ToString()),
             ("data", location.DataFolder),
@@ -94,6 +96,9 @@ public partial class App : Application
         _viewer.RatingChanged += _library.ApplyRating;
         shell.Viewer = _viewer;
 
+        _updates = new UpdateViewModel(new VelopackUpdates(), _db, shell, dispatcher, _log);
+        _library.Updates = _updates;
+
         var window = new LibraryWindow(_library);
         shell.Owner = window;
         MainWindow = window;
@@ -101,6 +106,7 @@ public partial class App : Application
         _library.Initialize();
 
         _ = FinishImportThenDrawAsync(location, electron);
+        _ = _updates.StartAsync(TimeSpan.FromSeconds(10));
     }
 
     /// <summary>Copies the Electron app's thumbnail images (if an import is under way), then starts drawing.</summary>
@@ -162,6 +168,7 @@ public partial class App : Application
     protected override void OnExit(ExitEventArgs e)
     {
         _log.Info("app.quit");
+        _updates?.Close();
         _viewer?.Close();
         // Let the thumbnail workers finish the model in hand (a few seconds at most), then close the database.
         if (_library is not null)
