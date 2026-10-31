@@ -27,15 +27,21 @@ public class LibraryViewModelTests
         public (string Path, bool SelectFile)? Revealed;
         public ViewerDocument? Opened;
         public string? SaveTo;
-        public string? FileToOpen;
+        public string? SuggestedName;
+        public AboutInfo? About;
 
         public string? PickFolder(string title) => FolderToPick;
         public RemoveChoice ConfirmRemoveFolder(string folder, long files) => RemoveAnswer;
         public void ShowMessage(string title, string message) => Messages.Add(message);
         public void CopyText(string text) => Clipboard = text;
         public void Reveal(string path, bool selectFile) => Revealed = (path, selectFile);
-        public string? PickSaveFile(string title, string suggestedName, string filter) => SaveTo;
-        public string? PickOpenFile(string title, string filter) => FileToOpen;
+        public string? PickSaveFile(string title, string suggestedName, string filter)
+        {
+            SuggestedName = suggestedName;
+            return SaveTo;
+        }
+
+        public void ShowAbout(AboutInfo about) => About = about;
         public void OpenModel(ViewerDocument document) => Opened = document;
         public string? OpenedFile;
         public void OpenFile(string path) => OpenedFile = path;
@@ -315,6 +321,34 @@ public class LibraryViewModelTests
         {
             System.Globalization.CultureInfo.CurrentCulture = culture;
         }
+    }
+
+    [Fact]
+    public async Task TheThumbnailSpeedIsSavedAndUsedTheNextTime()
+    {
+        var f = new Fixture();
+        await using var cleanup = f;
+        Assert.True(f.Vm.SpeedFull);
+        Assert.Equal(ThumbnailSpeed.Full, f.Queue.Speed);
+
+        var changed = new List<string?>();
+        f.Vm.PropertyChanged += (_, e) => changed.Add(e.PropertyName);
+        f.Vm.SpeedBackground = true;
+        Assert.Equal(ThumbnailSpeed.Background, f.Queue.Speed);
+        Assert.True(f.Vm.SpeedBackground);
+        Assert.False(f.Vm.SpeedFull);
+        Assert.Contains(nameof(LibraryViewModel.SpeedFull), changed);   // the old tick goes
+        Assert.Equal("background", f.Db.GetSetting(LibraryViewModel.ThumbnailSpeedSetting));
+
+        f.Vm.SpeedBackground = false;   // clicking the ticked item again keeps it
+        Assert.Equal(ThumbnailSpeed.Background, f.Queue.Speed);
+
+        // Next start: the queue begins at the saved speed.
+        await using var queue = new ThumbnailQueue(f.Db, f.Location, () => new FakeRenderer(), workers: 1);
+        await using var again = new LibraryViewModel(f.Db, f.Location, queue, f.Shell, new ImmediateDispatcher());
+        again.Initialize();
+        Assert.Equal(ThumbnailSpeed.Background, queue.Speed);
+        Assert.True(again.SpeedBackground);
     }
 
     [Fact]
