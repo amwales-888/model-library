@@ -47,9 +47,10 @@ public partial class App : Application
             _log = NullLog.Instance;   // no log is better than no app
         }
         WatchForCrashes();
+        var updates = new VelopackUpdates();
         _log.Info("app.start",
             ("version", Assembly.GetExecutingAssembly().GetName().Version?.ToString(3)),
-            ("installed", Velopack.VelopackLocator.IsCurrentSet && Velopack.VelopackLocator.Current.CurrentlyInstalledVersion is not null),
+            ("installed", updates.IsInstalled),
             ("os", Environment.OSVersion.VersionString),
             ("dotnet", Environment.Version.ToString()),
             ("data", location.DataFolder),
@@ -96,7 +97,7 @@ public partial class App : Application
         _viewer.RatingChanged += _library.ApplyRating;
         shell.Viewer = _viewer;
 
-        _updates = new UpdateViewModel(new VelopackUpdates(), _db, shell, dispatcher, _log);
+        _updates = new UpdateViewModel(updates, _db, shell, dispatcher, _log);
         _library.Updates = _updates;
 
         var window = new LibraryWindow(_library);
