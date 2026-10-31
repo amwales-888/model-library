@@ -212,7 +212,8 @@ Releases are made with [Velopack](https://velopack.io) and published as GitHub r
   `Xandrite.NET-win-Setup.exe`, the update packages and `releases.win.json` to a release called *Xandrite.NET 0.4.0*.
   The version comes from the tag. The Electron app's tags (`v*`) are separate and do not trigger this workflow.
 - **Setup.exe** installs for the current user, with no admin prompt, into `%LOCALAPPDATA%\Xandrite.NET`. It adds Start menu and desktop
-  shortcuts called *Xandrite* and an entry in *Settings → Apps* for uninstalling. Uninstalling keeps the library in
+  shortcuts called *Xandrite* and an entry in *Settings → Apps* for uninstalling. When it finishes, Xandrite asks
+  whether to start now (Setup always launches the app, so the app asks on its first run). Uninstalling keeps the library in
   `%APPDATA%\Xandrite.NET`.
 - **Updates.** About 10 seconds after start-up, an installed copy checks the latest releases. If it finds a newer
   version, it downloads it in the background (a delta when it can) and the status bar offers **Restart to update**.

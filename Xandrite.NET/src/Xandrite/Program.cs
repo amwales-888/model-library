@@ -1,3 +1,4 @@
+using System.Windows;
 using Velopack;
 
 namespace Xandrite.App;
@@ -11,10 +12,25 @@ public static class Program
     [STAThread]
     public static void Main(string[] args)
     {
-        VelopackApp.Build().SetArgs(args).Run();
+        bool justInstalled = false;
+        VelopackApp.Build()
+            .SetArgs(args)
+            .OnFirstRun(_ => justInstalled = true)
+            .Run();
+
+        // Setup always starts the app when it finishes; ask rather than open the library unannounced.
+        if (justInstalled && !StartAfterInstall()) return;
 
         var app = new App();
         app.InitializeComponent();
         app.Run();
     }
+
+    private static bool StartAfterInstall() =>
+        MessageBox.Show(
+            "Xandrite has been installed. You can start it any time from the Start menu or the desktop shortcut.\n\nStart Xandrite now?",
+            "Xandrite",
+            MessageBoxButton.YesNo,
+            MessageBoxImage.Information,
+            MessageBoxResult.Yes) == MessageBoxResult.Yes;
 }
