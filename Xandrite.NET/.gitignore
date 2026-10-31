@@ -7,7 +7,9 @@ x64/
 publish/
 artifacts/
 TestResults/
-thumbnails/
+
+# xandrite-thumb output, only at the top level (the src/*/Thumbnails folders are code)
+/thumbnails/
 
 ## Visual Studio, Rider and VS Code
 .vs/
