@@ -107,6 +107,10 @@
                         <MenuItem Header="Thumbnail preview…" Click="OnOpenPreview" />
                         <MenuItem Header="Open data folder" Command="{Binding OpenDataFolderCommand}" />
                         <MenuItem Header="Show log file" Command="{Binding ShowLogCommand}" />
+                        <Separator />
+                        <MenuItem Header="Check for updates automatically" IsCheckable="True" IsChecked="{Binding Updates.CheckAutomatically}" />
+                        <MenuItem Header="Check for updates now" Command="{Binding Updates.CheckNowCommand}" />
+                        <MenuItem Header="About Xandrite…" Command="{Binding Updates.AboutCommand}" />
                     </MenuItem>
                 </Menu>
             </DockPanel>
@@ -137,6 +141,10 @@
         <!-- ===== Status bar ===== -->
         <Border DockPanel.Dock="Bottom" Background="White" BorderBrush="#D5DBE0" BorderThickness="0,1,0,0" Padding="10,5">
             <DockPanel LastChildFill="True">
+                <Button DockPanel.Dock="Right" Content="Restart to update" Padding="10,2" Margin="8,0,0,0" FontWeight="SemiBold"
+                        Command="{Binding Updates.RestartCommand}"
+                        Visibility="{Binding Updates.IsReady, Converter={StaticResource Visible}}" />
+                <TextBlock DockPanel.Dock="Right" Text="{Binding Updates.Text}" VerticalAlignment="Center" Margin="8,0,0,0" Foreground="{StaticResource Accent}" />
                 <Button DockPanel.Dock="Right" Content="Rescan All" Padding="10,2" Margin="8,0,0,0" Command="{Binding RescanAllCommand}"
                         Visibility="{Binding HasRoots, Converter={StaticResource Visible}}" />
                 <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">

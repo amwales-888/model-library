@@ -1,6 +1,7 @@
 # Xandrite.NET: builds the solution on Windows, runs every test (including .7z and .rar with the real 7z.dll), and
 # draws the sample models with the software (WARP) renderer, which every Windows machine has. The thumbnails are
-# uploaded as an artifact so they can be looked at.
+# uploaded as an artifact so they can be looked at. It also makes the installer (Setup.exe, as a release would, but
+# not published) so it can be downloaded from the run and tried.
 #
 # Only runs when something under Xandrite.NET (or this file) changes; the Electron app has its own workflow.
 name: Xandrite.NET
@@ -54,3 +55,17 @@ jobs:
         with:
           name: sample-thumbnails
           path: Xandrite.NET/thumbnails/*.png
+
+      # The installer, made the way the release workflow makes it (without a previous release to make a delta from).
+      - name: Make the installer
+        shell: pwsh
+        run: |
+          dotnet publish src/Xandrite/Xandrite.csproj -c Release -r win-x64 --self-contained -o publish
+          if (-not (Test-Path publish/7z.dll)) { throw '7z.dll is missing from the published app' }
+          dotnet tool install -g vpk --version 1.2.161
+          vpk pack --packId Xandrite.NET --packVersion 0.0.1-ci --packDir publish --mainExe Xandrite.exe --packTitle Xandrite --packAuthors "Angelo Masci" --icon src/Xandrite/Xandrite.ico -o Releases
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: installer
+          path: Xandrite.NET/Releases/*-Setup.exe

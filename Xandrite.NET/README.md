@@ -198,6 +198,32 @@ The GitHub Actions workflow (`.github/workflows/xandrite-net.yml` at the root of
 draws the samples with WARP on `windows-latest`, then uploads the PNGs as an artifact. It runs only when something
 under `Xandrite.NET` changes.
 
+## Installing and updating
+
+Releases are made with [Velopack](https://velopack.io) and published as GitHub releases of this repository.
+
+- **To make a release**, set the version and push a tag that starts with `net-v`:
+  ```
+  git tag net-v0.4.0
+  git push origin net-v0.4.0
+  ```
+  The `Xandrite.NET release` workflow (`.github/workflows/xandrite-net-release.yml`) builds and tests the app, publishes
+  it as a self-contained app, and packs it with `vpk`. It makes a delta from the previous release, then uploads
+  `Xandrite.NET-win-Setup.exe`, the update packages and `releases.win.json` to a release called *Xandrite.NET 0.4.0*.
+  The version comes from the tag. The Electron app's tags (`v*`) are separate and do not trigger this workflow.
+- **Setup.exe** installs for the current user, with no admin prompt, into `%LOCALAPPDATA%\Xandrite.NET`. It adds Start menu and desktop
+  shortcuts called *Xandrite* and an entry in *Settings → Apps* for uninstalling. When it finishes, Xandrite asks
+  whether to start now (Setup always launches the app, so the app asks on its first run). Uninstalling keeps the library in
+  `%APPDATA%\Xandrite.NET`.
+- **Updates.** About 10 seconds after start-up, an installed copy checks the latest releases. If it finds a newer
+  version, it downloads it in the background (a delta when it can) and the status bar offers **Restart to update**.
+  If you don't restart, the update is installed the next time Xandrite starts. *Preferences* has *Check for updates
+  automatically*, *Check for updates now* and *About Xandrite…*. Checks, downloads and problems are written to the log
+  (`update.*`).
+- A copy run from Visual Studio or `dotnet run` is not installed, so it never checks or updates.
+- Every CI run also builds an installer (version `0.0.1-ci`) and keeps it as the `installer` artifact, to try without making a release.
+- The installer isn't code-signed yet, so Windows SmartScreen warns the first time it is run (*More info → Run anyway*).
+
 ## What has been verified, and what has not yet
 
 This was put together on Linux, where NuGet and Windows weren't available:
@@ -219,6 +245,5 @@ This was put together on Linux, where NuGet and Windows weren't available:
 
 ## Next steps
 
-1. Installer and updates (Velopack or MSIX).
-2. Windows integration: thumbnails in Explorer itself (a shell thumbnail provider), the NTFS change journal for
+1. Windows integration: thumbnails in Explorer itself (a shell thumbnail provider), the NTFS change journal for
    instant rescans.
