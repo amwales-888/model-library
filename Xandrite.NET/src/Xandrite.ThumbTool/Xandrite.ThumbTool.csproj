@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Command-line thumbnail maker: for trying the renderer on real files, timing it, and for scripts and CI. -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <AssemblyName>xandrite-thumb</AssemblyName>
+    <RootNamespace>Xandrite.ThumbTool</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Xandrite.Core\Xandrite.Core.csproj" />
+    <ProjectReference Include="..\Xandrite.Rendering.Direct3D11\Xandrite.Rendering.Direct3D11.csproj" />
+  </ItemGroup>
+
+</Project>

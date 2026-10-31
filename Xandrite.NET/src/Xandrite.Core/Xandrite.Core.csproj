@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Everything about a thumbnail that does not need the GPU: reading STL and 3MF files, framing the camera,
+    the lighting and material values, the view settings stored in each PNG, and writing the PNG itself.
+    It has no Windows dependencies, so it builds and its tests run anywhere.
+  -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <RootNamespace>Xandrite</RootNamespace>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="Xandrite.Core.Tests" />
+  </ItemGroup>
+
+</Project>

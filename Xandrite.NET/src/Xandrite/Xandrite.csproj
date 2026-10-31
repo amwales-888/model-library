@@ -1,0 +1,29 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    The Xandrite desktop app (WPF): the library window (folder tree, thumbnail grid, filters, ratings, scanning,
+    the thumbnail queue) and the thumbnail preview. The window's logic lives in Xandrite.Presentation; this project
+    adds the XAML, image loading and dialogs.
+  -->
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <AssemblyName>Xandrite</AssemblyName>
+    <RootNamespace>Xandrite.App</RootNamespace>
+    <ApplicationIcon>Xandrite.ico</ApplicationIcon>
+    <AssemblyTitle>Xandrite</AssemblyTitle>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Xandrite.Core\Xandrite.Core.csproj" />
+    <ProjectReference Include="..\Xandrite.Rendering.Direct3D11\Xandrite.Rendering.Direct3D11.csproj" />
+    <ProjectReference Include="..\Xandrite.Library\Xandrite.Library.csproj" />
+    <ProjectReference Include="..\Xandrite.Presentation\Xandrite.Presentation.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Resource Include="Xandrite.ico" />
+  </ItemGroup>
+
+</Project>

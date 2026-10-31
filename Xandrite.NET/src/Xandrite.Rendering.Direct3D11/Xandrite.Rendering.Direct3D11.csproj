@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Draws thumbnails with Direct3D 11, calling d3d11.dll, dxgi.dll and d3dcompiler_47.dll (all part of Windows)
+    directly through COM interop. No NuGet packages and no browser engine. On machines without a usable GPU
+    (virtual machines, remote desktop) it falls back to WARP, Microsoft's software Direct3D rasteriser.
+
+    It targets plain net10.0 rather than net10.0-windows because it needs nothing from the Windows Desktop SDK,
+    which also means it compiles on any OS. It only runs on Windows.
+  -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <RootNamespace>Xandrite.Rendering.Direct3D11</RootNamespace>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Xandrite.Core\Xandrite.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="Shaders\Standard.hlsl" LogicalName="Xandrite.Shaders.Standard.hlsl" />
+  </ItemGroup>
+
+</Project>

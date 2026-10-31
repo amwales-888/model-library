@@ -1,0 +1,34 @@
+<Window x:Class="Xandrite.App.ManageFoldersWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Manage folders"
+        Width="720" Height="420" MinWidth="480" MinHeight="260"
+        WindowStartupLocation="CenterOwner" ShowInTaskbar="False"
+        Background="#F6F8F9">
+    <DockPanel Margin="12">
+        <TextBlock DockPanel.Dock="Top" TextWrapping="Wrap" Margin="0,0,0,10" Foreground="#3A4A56"
+                   Text="These are the folders the library searches. Removing a folder only takes it out of the library; your files are never touched. New folders are scanned when this window closes." />
+
+        <DockPanel DockPanel.Dock="Bottom" Margin="0,10,0,0" LastChildFill="False">
+            <Button Content="Add folder…" Padding="12,3" Click="OnAdd" />
+            <Button DockPanel.Dock="Right" Content="Close" Padding="16,3" IsCancel="True" />
+        </DockPanel>
+
+        <ListView x:Name="FolderList" BorderBrush="#D5DBE0">
+            <ListView.View>
+                <GridView>
+                    <GridViewColumn Header="Folder" Width="360" DisplayMemberBinding="{Binding Path}" />
+                    <GridViewColumn Header="Files" Width="80" DisplayMemberBinding="{Binding FilesText}" />
+                    <GridViewColumn Header="Last scanned" Width="130" DisplayMemberBinding="{Binding ScannedText}" />
+                    <GridViewColumn Header="" Width="90">
+                        <GridViewColumn.CellTemplate>
+                            <DataTemplate>
+                                <Button Content="Remove…" Padding="8,1" Click="OnRemove" Tag="{Binding}" />
+                            </DataTemplate>
+                        </GridViewColumn.CellTemplate>
+                    </GridViewColumn>
+                </GridView>
+            </ListView.View>
+        </ListView>
+    </DockPanel>
+</Window>

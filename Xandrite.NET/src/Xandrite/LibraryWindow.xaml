@@ -1,0 +1,245 @@
+<Window x:Class="Xandrite.App.LibraryWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:local="clr-namespace:Xandrite.App"
+        xmlns:vm="clr-namespace:Xandrite.Presentation;assembly=Xandrite.Presentation"
+        Title="Xandrite"
+        Width="1180" Height="820" MinWidth="640" MinHeight="480"
+        Icon="Xandrite.ico"
+        Background="#ECEFF2"
+        AllowDrop="True" DragOver="OnDragOver" Drop="OnDrop"
+        PreviewKeyDown="OnPreviewKeyDown">
+
+    <Window.Resources>
+        <local:BoolToVisibility x:Key="Visible" />
+        <local:EmptyToCollapsed x:Key="IfText" />
+
+        <SolidColorBrush x:Key="Accent" Color="#2F7DE1" />
+        <SolidColorBrush x:Key="SelectedTile" Color="#E3EEFC" />
+
+        <!-- One thumbnail. Sizes come from the window's view model, so the slider resizes every tile. -->
+        <DataTemplate x:Key="TileTemplate" DataType="{x:Type vm:TileViewModel}">
+            <Border x:Name="Tile"
+                    Width="{Binding DataContext.TileSize, RelativeSource={RelativeSource AncestorType=Window}}"
+                    Margin="0,0,8,0" Padding="6" CornerRadius="6"
+                    Background="White" BorderBrush="Transparent" BorderThickness="2"
+                    ToolTip="{Binding ToolTip}" ToolTipService.InitialShowDelay="700"
+                    MouseLeftButtonDown="OnTileMouseDown" MouseRightButtonUp="OnTileRightClick">
+                <StackPanel>
+                    <Grid Height="{Binding DataContext.ImageSize, RelativeSource={RelativeSource AncestorType=Window}}" Background="#DFE5EA">
+                        <TextBlock Text="{Binding PlaceholderText}" Foreground="#7A8A96" FontSize="11"
+                                   HorizontalAlignment="Center" VerticalAlignment="Center" TextWrapping="Wrap" TextAlignment="Center" Margin="6" />
+                        <Image Stretch="Uniform" RenderOptions.BitmapScalingMode="HighQuality"
+                               local:ThumbnailImage.Tile="{Binding}"
+                               local:ThumbnailImage.Version="{Binding ImageVersion}"
+                               local:ThumbnailImage.DecodeSize="{Binding DataContext.ImageSize, RelativeSource={RelativeSource AncestorType=Window}}" />
+                        <TextBlock Text="{Binding RatingText}" Foreground="#D99A00" FontSize="14"
+                                   HorizontalAlignment="Left" VerticalAlignment="Bottom" Margin="5,0,0,3" />
+                        <Border Background="#CC2F7DE1" CornerRadius="3" Padding="4,1" Margin="4"
+                                HorizontalAlignment="Left" VerticalAlignment="Top"
+                                Visibility="{Binding HasCustomView, Converter={StaticResource Visible}}">
+                            <TextBlock Text="custom view" Foreground="White" FontSize="10" />
+                        </Border>
+                        <Border Background="#CCB3261E" CornerRadius="3" Padding="4,1" Margin="4"
+                                HorizontalAlignment="Left" VerticalAlignment="Top"
+                                Visibility="{Binding IsMissing, Converter={StaticResource Visible}}">
+                            <TextBlock Text="missing" Foreground="White" FontSize="10" />
+                        </Border>
+                        <!-- The round tick: adds or removes this tile from the selection, like Ctrl-click. -->
+                        <Border x:Name="Tick" Width="22" Height="22" CornerRadius="11" Margin="4"
+                                HorizontalAlignment="Right" VerticalAlignment="Top"
+                                Background="#B3FFFFFF" BorderBrush="#8094A3" BorderThickness="1.5"
+                                Cursor="Hand" MouseLeftButtonDown="OnTickMouseDown">
+                            <TextBlock x:Name="TickMark" Text="✓" Foreground="White" FontSize="13" FontWeight="Bold"
+                                       HorizontalAlignment="Center" VerticalAlignment="Center" Visibility="Hidden" />
+                        </Border>
+                    </Grid>
+                    <TextBlock Text="{Binding Name}" Margin="0,5,0,0" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
+                    <TextBlock Text="{Binding Caption}" Foreground="#6B7A86" FontSize="11"
+                               Visibility="{Binding Caption, Converter={StaticResource IfText}}" />
+                    <TextBlock Foreground="#6B7A86" FontSize="11" TextTrimming="CharacterEllipsis"
+                               Visibility="{Binding ArchiveName, Converter={StaticResource IfText}}">
+                        <Run Text="in " /><Run Text="{Binding ArchiveName, Mode=OneWay}" />
+                    </TextBlock>
+                </StackPanel>
+            </Border>
+            <DataTemplate.Triggers>
+                <DataTrigger Binding="{Binding IsSelected}" Value="True">
+                    <Setter TargetName="Tile" Property="BorderBrush" Value="{StaticResource Accent}" />
+                    <Setter TargetName="Tile" Property="Background" Value="{StaticResource SelectedTile}" />
+                    <Setter TargetName="Tick" Property="Background" Value="{StaticResource Accent}" />
+                    <Setter TargetName="Tick" Property="BorderBrush" Value="{StaticResource Accent}" />
+                    <Setter TargetName="TickMark" Property="Visibility" Value="Visible" />
+                </DataTrigger>
+                <DataTrigger Binding="{Binding IsMissing}" Value="True">
+                    <Setter TargetName="Tile" Property="Opacity" Value="0.55" />
+                </DataTrigger>
+            </DataTemplate.Triggers>
+        </DataTemplate>
+    </Window.Resources>
+
+    <DockPanel>
+        <!-- ===== Top bar: search, order, size, preferences ===== -->
+        <Border DockPanel.Dock="Top" Background="White" BorderBrush="#D5DBE0" BorderThickness="0,0,0,1" Padding="10,8">
+            <DockPanel LastChildFill="False">
+                <TextBlock Text="Xandrite" FontSize="18" FontWeight="SemiBold" VerticalAlignment="Center" Margin="0,0,16,0" />
+                <TextBlock Text="Search" VerticalAlignment="Center" Margin="0,0,6,0" />
+                <TextBox x:Name="SearchBox" Width="240" VerticalContentAlignment="Center" Padding="4,3"
+                         Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}"
+                         ToolTip="Part of a file name, a folder, or a SHA-256" />
+
+                <TextBlock Text="Order by" VerticalAlignment="Center" Margin="16,0,6,0" />
+                <ComboBox Width="140" ItemsSource="{Binding SortOptions}" SelectedItem="{Binding Sort}" DisplayMemberPath="Label" />
+                <Button Content="{Binding DirectionGlyph}" Command="{Binding ToggleDirectionCommand}" Margin="4,0,0,0" Padding="8,2"
+                        ToolTip="Reverse the order" />
+
+                <TextBlock Text="Size" VerticalAlignment="Center" Margin="16,0,6,0" />
+                <Slider Width="120" VerticalAlignment="Center"
+                        Minimum="{x:Static vm:LibraryViewModel.MinTileSize}" Maximum="{x:Static vm:LibraryViewModel.MaxTileSize}"
+                        Value="{Binding TileSize}" SmallChange="8" LargeChange="32" />
+
+                <Menu DockPanel.Dock="Right" Background="Transparent" VerticalAlignment="Center">
+                    <MenuItem Header="Preferences ▾" Padding="8,3">
+                        <MenuItem Header="Manage folders…" Click="OnManageFolders" />
+                        <MenuItem Header="Add folder…" Command="{Binding AddFolderCommand}" />
+                        <MenuItem Header="Search inside archives (.zip)" IsCheckable="True" IsChecked="{Binding SearchInsideArchives}" />
+                        <Separator />
+                        <MenuItem Header="Thumbnail preview…" Click="OnOpenPreview" />
+                        <MenuItem Header="Open data folder" Command="{Binding OpenDataFolderCommand}" />
+                    </MenuItem>
+                </Menu>
+            </DockPanel>
+        </Border>
+
+        <!-- ===== Filter bar ===== -->
+        <Border DockPanel.Dock="Top" Background="#F6F8F9" BorderBrush="#D5DBE0" BorderThickness="0,0,0,1" Padding="10,6"
+                Visibility="{Binding HasRoots, Converter={StaticResource Visible}}">
+            <DockPanel LastChildFill="False">
+                <ComboBox Width="120" ItemsSource="{Binding SizeOptions}" SelectedItem="{Binding SizeFilter}" DisplayMemberPath="Label" />
+                <ComboBox Width="140" Margin="6,0,0,0" ItemsSource="{Binding AgeOptions}" SelectedItem="{Binding AgeFilter}" DisplayMemberPath="Label" />
+                <TextBlock Text="by date" VerticalAlignment="Center" Margin="6,0,4,0" />
+                <ComboBox Width="85" ItemsSource="{Binding AgeBasisOptions}" SelectedItem="{Binding AgeBasis}" DisplayMemberPath="Label" />
+                <ComboBox Width="120" Margin="6,0,0,0" ItemsSource="{Binding RatingOptions}" SelectedItem="{Binding RatingFilter}" DisplayMemberPath="Label" />
+                <Button Content="Clear filters" Margin="6,0,0,0" Padding="8,1" Command="{Binding ClearFiltersCommand}"
+                        IsEnabled="{Binding FiltersActive}" />
+                <CheckBox Content="Include subfolders" IsChecked="{Binding IncludeSubfolders}" VerticalAlignment="Center" Margin="16,0,0,0" />
+                <CheckBox Content="Show missing" IsChecked="{Binding ShowMissing}" VerticalAlignment="Center" Margin="12,0,0,0" />
+
+                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                    <TextBlock Text="{Binding SelectionText}" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="{StaticResource Accent}" />
+                    <Button Content="Select all" Padding="8,1" Command="{Binding SelectAllCommand}" />
+                    <Button Content="Clear" Padding="8,1" Margin="4,0,0,0" Command="{Binding ClearSelectionCommand}" />
+                </StackPanel>
+            </DockPanel>
+        </Border>
+
+        <!-- ===== Status bar ===== -->
+        <Border DockPanel.Dock="Bottom" Background="White" BorderBrush="#D5DBE0" BorderThickness="0,1,0,0" Padding="10,5">
+            <DockPanel LastChildFill="True">
+                <Button DockPanel.Dock="Right" Content="Rescan All" Padding="10,2" Margin="8,0,0,0" Command="{Binding RescanAllCommand}"
+                        Visibility="{Binding HasRoots, Converter={StaticResource Visible}}" />
+                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                    <TextBlock Text="{Binding ThumbnailText}" VerticalAlignment="Center" Foreground="#4A5A66" />
+                    <Button Content="Pause" Padding="8,1" Margin="6,0,0,0" Command="{Binding PauseThumbnailsCommand}"
+                            Visibility="{Binding CanPauseThumbnails, Converter={StaticResource Visible}}" />
+                    <Button Content="Resume" Padding="8,1" Margin="6,0,0,0" Command="{Binding ResumeThumbnailsCommand}"
+                            Visibility="{Binding CanResumeThumbnails, Converter={StaticResource Visible}}" />
+                    <Button Content="Retry failed" Padding="8,1" Margin="6,0,0,0" Command="{Binding RetryFailedCommand}"
+                            Visibility="{Binding HasFailedThumbnails, Converter={StaticResource Visible}}" />
+                </StackPanel>
+                <StackPanel Orientation="Horizontal">
+                    <TextBlock Text="{Binding StatsText}" VerticalAlignment="Center" />
+                    <TextBlock Text="{Binding ListText}" VerticalAlignment="Center" Margin="16,0,0,0" Foreground="#4A5A66" />
+                    <TextBlock Text="{Binding ScanText}" VerticalAlignment="Center" Margin="16,0,0,0" Foreground="#4A5A66" TextTrimming="CharacterEllipsis" MaxWidth="520" />
+                    <Button Content="Cancel" Padding="8,1" Margin="6,0,0,0" Command="{Binding CancelScanCommand}"
+                            Visibility="{Binding IsScanning, Converter={StaticResource Visible}}" />
+                    <TextBlock Text="{Binding ActivityText}" VerticalAlignment="Center" Margin="16,0,0,0" Foreground="#4A5A66" />
+                    <TextBlock Text="{Binding ImportText}" VerticalAlignment="Center" Margin="16,0,0,0" Foreground="#4A5A66" />
+                </StackPanel>
+            </DockPanel>
+        </Border>
+
+        <!-- ===== Main area ===== -->
+        <Grid>
+            <!-- Welcome: shown while the library has no folders. -->
+            <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" MaxWidth="460"
+                        Visibility="{Binding HasRoots, Converter={StaticResource Visible}, ConverterParameter=Invert}">
+                <TextBlock Text="Welcome to Xandrite" FontSize="26" FontWeight="SemiBold" HorizontalAlignment="Center" />
+                <TextBlock Text="Every model has a side worth seeing." FontStyle="Italic" Foreground="#5A6B78" HorizontalAlignment="Center" Margin="0,4,0,18" />
+                <TextBlock TextWrapping="Wrap" TextAlignment="Center" Foreground="#3A4A56" Margin="0,0,0,18"
+                           Text="Add a folder of .stl and .3mf files. Xandrite finds every model in it, including those inside zip files, and draws a thumbnail of each. Your files are never changed." />
+                <Button Content="Add folder…" Command="{Binding AddFolderCommand}" HorizontalAlignment="Center" Padding="18,6" FontSize="14" />
+                <TextBlock Text="You can also drop folders on this window." Foreground="#7A8A96" HorizontalAlignment="Center" Margin="0,12,0,0" />
+            </StackPanel>
+
+            <Grid Visibility="{Binding HasRoots, Converter={StaticResource Visible}}">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="260" MinWidth="150" />
+                    <ColumnDefinition Width="5" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+
+                <!-- Folder tree -->
+                <TreeView x:Name="FolderTree" Grid.Column="0" ItemsSource="{Binding Folders}" BorderThickness="0" Background="#F6F8F9" Padding="4"
+                          MouseRightButtonUp="OnFolderRightClick">
+                    <TreeView.ItemContainerStyle>
+                        <Style TargetType="TreeViewItem">
+                            <Setter Property="IsExpanded" Value="{Binding IsExpanded, Mode=TwoWay}" />
+                            <Setter Property="IsSelected" Value="{Binding IsSelected, Mode=TwoWay}" />
+                            <Setter Property="Padding" Value="2,2" />
+                        </Style>
+                    </TreeView.ItemContainerStyle>
+                    <TreeView.ItemTemplate>
+                        <HierarchicalDataTemplate DataType="{x:Type vm:FolderNodeViewModel}" ItemsSource="{Binding Children}">
+                            <TextBlock Text="{Binding Label}" ToolTip="{Binding Path}" />
+                        </HierarchicalDataTemplate>
+                    </TreeView.ItemTemplate>
+                </TreeView>
+
+                <GridSplitter Grid.Column="1" Width="5" HorizontalAlignment="Stretch" Background="#D5DBE0" />
+
+                <!-- Thumbnail grid: a virtualised list of rows, so only the rows on screen are built. -->
+                <ItemsControl x:Name="TileGrid" Grid.Column="2" ItemsSource="{Binding Rows}" Focusable="True"
+                              Padding="12,12,4,12" Background="#E7EBEE"
+                              VirtualizingPanel.IsVirtualizing="True"
+                              VirtualizingPanel.VirtualizationMode="Recycling"
+                              VirtualizingPanel.ScrollUnit="Pixel"
+                              ScrollViewer.CanContentScroll="True"
+                              SizeChanged="OnGridSizeChanged"
+                              MouseLeftButtonDown="OnGridBackgroundClick">
+                    <ItemsControl.Template>
+                        <ControlTemplate TargetType="ItemsControl">
+                            <Border Background="{TemplateBinding Background}">
+                                <ScrollViewer x:Name="PART_Scroll" CanContentScroll="True" Focusable="False"
+                                              HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Visible"
+                                              Padding="{TemplateBinding Padding}">
+                                    <ItemsPresenter />
+                                </ScrollViewer>
+                            </Border>
+                        </ControlTemplate>
+                    </ItemsControl.Template>
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <VirtualizingStackPanel />
+                        </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate DataType="{x:Type vm:TileRowViewModel}">
+                            <ItemsControl ItemsSource="{Binding Tiles}" ItemTemplate="{StaticResource TileTemplate}" Margin="0,0,0,8" Focusable="False">
+                                <ItemsControl.ItemsPanel>
+                                    <ItemsPanelTemplate>
+                                        <StackPanel Orientation="Horizontal" />
+                                    </ItemsPanelTemplate>
+                                </ItemsControl.ItemsPanel>
+                            </ItemsControl>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+
+                <TextBlock Grid.Column="2" Text="No files match." Foreground="#7A8A96" FontSize="16"
+                           HorizontalAlignment="Center" VerticalAlignment="Center" IsHitTestVisible="False"
+                           Visibility="{Binding IsListEmpty, Converter={StaticResource Visible}}" />
+            </Grid>
+        </Grid>
+    </DockPanel>
+</Window>

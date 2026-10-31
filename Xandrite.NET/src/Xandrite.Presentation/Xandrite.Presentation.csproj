@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    The library window's logic as plain view models: filters, sorting, the folder tree, tiles grouped into rows for
+    virtualisation, selection, ratings, scanning and thumbnail status. No WPF types, so it builds and is tested on any
+    OS; the WPF project only adds the XAML, image loading and dialogs (through ILibraryShell).
+  -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <RootNamespace>Xandrite.Presentation</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Xandrite.Library\Xandrite.Library.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="Xandrite.Presentation.Tests" />
+  </ItemGroup>
+
+</Project>

@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    The library: the SQLite index of every model file (same schema as the Electron app, so an existing
+    library.sqlite carries over), scanning folders, hashing, and reading models inside zip files.
+
+    SQLite is called through its C API: on Windows that is winsqlite3.dll, the copy built into Windows,
+    so nothing is installed or shipped. No NuGet packages.
+  -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <RootNamespace>Xandrite.Library</RootNamespace>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Xandrite.Core\Xandrite.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="Xandrite.Library.Tests" />
+  </ItemGroup>
+
+</Project>

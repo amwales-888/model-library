@@ -1,0 +1,23 @@
+## Build output
+bin/
+obj/
+[Dd]ebug/
+[Rr]elease/
+x64/
+publish/
+artifacts/
+TestResults/
+thumbnails/
+
+## Visual Studio, Rider and VS Code
+.vs/
+*.user
+*.suo
+*.rsuser
+.idea/
+.vscode/
+*.DotSettings.user
+
+## OS
+Thumbs.db
+.DS_Store

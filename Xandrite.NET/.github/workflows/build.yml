@@ -1,0 +1,38 @@
+# Builds everything on Windows, runs the tests, and draws the sample models with the software (WARP) renderer,
+# which every Windows machine has, so the thumbnails can be checked from the run's artifacts.
+#
+# This assumes Xandrite.NET is the root of its repository. If it lives in a folder of a bigger repository,
+# move this file to that repository's .github/workflows and set `working-directory` below.
+name: build
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    defaults:
+      run:
+        working-directory: .
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+
+      - name: Build
+        run: dotnet build Xandrite.slnx -c Release
+
+      - name: Test
+        run: dotnet test Xandrite.slnx -c Release --no-build
+
+      - name: Draw the samples with WARP
+        run: dotnet src/Xandrite.ThumbTool/bin/Release/net10.0/xandrite-thumb.dll samples -o thumbnails --software
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sample-thumbnails
+          path: thumbnails/*.png

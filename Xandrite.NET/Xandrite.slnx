@@ -1,0 +1,22 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Xandrite/Xandrite.csproj" />
+    <Project Path="src/Xandrite.Core/Xandrite.Core.csproj" />
+    <Project Path="src/Xandrite.Library/Xandrite.Library.csproj" />
+    <Project Path="src/Xandrite.LibraryTool/Xandrite.LibraryTool.csproj" />
+    <Project Path="src/Xandrite.Presentation/Xandrite.Presentation.csproj" />
+    <Project Path="src/Xandrite.Rendering.Direct3D11/Xandrite.Rendering.Direct3D11.csproj" />
+    <Project Path="src/Xandrite.ThumbTool/Xandrite.ThumbTool.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Xandrite.Core.Tests/Xandrite.Core.Tests.csproj" />
+    <Project Path="tests/Xandrite.Library.Tests/Xandrite.Library.Tests.csproj" />
+    <Project Path="tests/Xandrite.Presentation.Tests/Xandrite.Presentation.Tests.csproj" />
+  </Folder>
+  <Folder Name="/Solution Items/">
+    <File Path="README.md" />
+    <File Path="Directory.Build.props" />
+    <File Path="global.json" />
+    <File Path=".github/workflows/build.yml" />
+  </Folder>
+</Solution>
