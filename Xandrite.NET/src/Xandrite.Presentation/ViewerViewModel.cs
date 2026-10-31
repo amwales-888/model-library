@@ -482,11 +482,17 @@ public sealed class ViewerViewModel : ObservableObject, IDisposable
         try
         {
             var (png, view) = await DrawThumbnailAsync(Look.ThumbnailSize);
-            await ThumbnailFiles.WriteAsync(_location.ThumbnailPath(sha), png);   // the queue may be writing it too
-
-            _db.SetView(sha, new SavedView([view.Position.X, view.Position.Y, view.Position.Z], [view.Target.X, view.Target.Y, view.Target.Z], view.FovDeg, view.ZUp));
-            _db.RecordThumbnail(sha, ThumbnailState.Ok, Look.RenderVersion, Look.ThumbnailSize);
-            _queue.Skip(sha);   // in case it was waiting in the queue
+            // Off the UI thread, so a Revert waiting for the same lock on the UI thread cannot hold this up.
+            await Task.Run(async () =>
+            {
+                using (await ThumbnailFiles.LockAsync(sha))   // the queue may be drawing this model too
+                {
+                    await ThumbnailFiles.WriteAsync(_location.ThumbnailPath(sha), png);
+                    _db.SetView(sha, new SavedView([view.Position.X, view.Position.Y, view.Position.Z], [view.Target.X, view.Target.Y, view.Target.Z], view.FovDeg, view.ZUp));
+                    _db.RecordThumbnail(sha, ThumbnailState.Ok, Look.RenderVersion, Look.ThumbnailSize);
+                    _queue.Skip(sha);   // in case it was waiting in the queue
+                }
+            });
             HasCustomView = true;
             _log.Info("view.saved", ("sha256", sha), ("fov_deg", view.FovDeg), ("z_up", view.ZUp));
             UpdateNote = "Thumbnail updated in the library.";
@@ -503,9 +509,12 @@ public sealed class ViewerViewModel : ObservableObject, IDisposable
     public void Revert()
     {
         if (_sha is not { } sha || !HasCustomView) return;
-        _db.DeleteView(sha);
-        _db.DeleteThumbnailRow(sha);
-        _queue.Unskip(sha);
+        using (ThumbnailFiles.Lock(sha))   // so a drawing of the saved view cannot land after this
+        {
+            _db.DeleteView(sha);
+            _db.DeleteThumbnailRow(sha);
+            _queue.Unskip(sha);
+        }
         _queue.Start();
         HasCustomView = false;
         _log.Info("view.reverted", ("sha256", sha));

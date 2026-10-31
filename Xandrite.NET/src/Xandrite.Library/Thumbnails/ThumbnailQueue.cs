@@ -300,10 +300,12 @@ public sealed class ThumbnailQueue : IAsyncDisposable
         long readMs = Ms();
 
         ThumbnailResult result;
+        SavedView? usedView;
         try
         {
             var renderer = _renderers[slot] ??= _createRenderer();
-            var view = _db.GetView(job.Sha256) is { } saved
+            usedView = _db.GetView(job.Sha256);
+            var view = usedView is { } saved
                 ? new StoredView(ToVector(saved.Position), ToVector(saved.Target), (float)saved.FovDeg, saved.ZUp)
                 : null;
             result = new ThumbnailGenerator(renderer).Generate(new ThumbnailJob(bytes, job.Format, Path.GetFileName(job.Path), job.Sha256, view));
@@ -329,22 +331,38 @@ public sealed class ThumbnailQueue : IAsyncDisposable
             return;
         }
 
-        try
+        using (await ThumbnailFiles.LockAsync(job.Sha256))
         {
-            await ThumbnailFiles.WriteAsync(ImagePath(job.Sha256), result.Png);   // never a half-written image under the real name
+            // The viewer may have saved (or dropped) a view while this was drawing: then its image is the right one,
+            // and a revert has already put the model back in the queue.
+            if (!SameView(usedView, _db.GetView(job.Sha256)))
+            {
+                Log.Info("thumb.skip", ("path", job.Path), ("sha256", job.Sha256), ("reason", "the view was changed while drawing"));
+                lock (_gate) _skipped++;
+                Emit();
+                return;
+            }
+            try
+            {
+                await ThumbnailFiles.WriteAsync(ImagePath(job.Sha256), result.Png);   // never a half-written image under the real name
+            }
+            catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+            {
+                Fail(job, "Could not save the thumbnail: " + e.Message);
+                return;
+            }
+            _db.RecordThumbnail(job.Sha256, ThumbnailState.Ok, Look.RenderVersion, Look.ThumbnailSize);
         }
-        catch (Exception e) when (e is IOException or UnauthorizedAccessException)
-        {
-            Fail(job, "Could not save the thumbnail: " + e.Message);
-            return;
-        }
-
-        _db.RecordThumbnail(job.Sha256, ThumbnailState.Ok, Look.RenderVersion, Look.ThumbnailSize);
         Log.Info("thumb.ok", ("path", job.Path), ("sha256", job.Sha256), ("ms", Ms()), ("read_ms", readMs), ("size", job.Size), ("triangles", result.Triangles));
         lock (_gate) _done++;
         JobDone?.Invoke(new ThumbnailJobDone(job.Sha256, ThumbnailState.Ok, null));
         Emit();
     }
+
+    private static bool SameView(SavedView? a, SavedView? b) =>
+        a is null || b is null
+            ? a is null && b is null
+            : a.Position.AsSpan().SequenceEqual(b.Position) && a.Target.AsSpan().SequenceEqual(b.Target) && a.FovDeg == b.FovDeg && a.ZUp == b.ZUp;
 
     private static Vector3 ToVector(double[] v) => new((float)v[0], (float)v[1], (float)v[2]);
 
