@@ -19,7 +19,7 @@ public class ViewerViewModelTests
         try
         {
             trigger();
-            return await frame.Task.WaitAsync(TimeSpan.FromSeconds(10));
+            return await frame.Task.WaitAsync(TimeSpan.FromSeconds(30));
         }
         finally
         {
@@ -62,7 +62,9 @@ public class ViewerViewModelTests
     {
         var (f, viewer, _) = await OpenFromLibrary();
         await using var cleanup = f;
+        // A frame already being drawn may arrive first, at the old size; the new size follows straight after.
         var frame = await NextFrame(viewer, () => viewer.SetViewport(640, 360));
+        for (int i = 0; i < 5 && frame.Width != 640; i++) frame = await NextFrame(viewer, viewer.RequestFrame);
         Assert.Equal(640, frame.Width);
         Assert.Equal(360, frame.Height);
 

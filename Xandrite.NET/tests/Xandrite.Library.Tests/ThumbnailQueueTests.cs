@@ -175,7 +175,7 @@ public class ThumbnailQueueTests
     }
 
     [Fact]
-    public async Task ModelsInsideArchivesThatCannotBeReadYetAreSkippedNotFailed()
+    public async Task ModelsInsideArchivesWithNoReaderAreSkippedNotFailed()
     {
         FakeRenderer.Broken = () => false;
         using var lib = new TempLibrary();
@@ -186,7 +186,13 @@ public class ThumbnailQueueTests
             c.Execute("INSERT INTO locations(path,root,sha256,size,mtime_ms,last_seen_scan,added_scan,container,entry) VALUES (?,?,?,?,?,?,?,?,?)",
                 Path.Combine(lib.At("kit.7z"), "leg.stl"), lib.Root, "ab", 1, 0, 1, 1, lib.At("kit.7z"), "leg.stl");
         });
-        await using var queue = await RunToEnd(lib);
+        // A model source that only reads zips, as when 7z.dll is missing: the model keeps any old image.
+        var location = new LibraryLocation(lib.Dir);
+        await using var queue = new ThumbnailQueue(lib.Db, location, () => new FakeRenderer(), new Scanning.ModelSource([new Scanning.ZipArchiveReader()]));
+        var idle = new TaskCompletionSource();
+        queue.Idle += () => idle.TrySetResult();
+        queue.Start();
+        await idle.Task.WaitAsync(TimeSpan.FromSeconds(30));
         Assert.Equal(1, queue.GetStatus().Skipped);
         Assert.Equal(0, queue.GetStatus().Counts.Failed);
     }

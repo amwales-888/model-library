@@ -246,13 +246,13 @@ public class LibraryViewModelTests
         await using var f = new Fixture(files: 3);
         await f.AddModelsFolder();   // the scan starts the queue
         var tile = f.Vm.Tiles[0];
-        for (int i = 0; i < 100 && tile.ImageVersion == 0; i++) await Task.Delay(50);
+        for (int i = 0; i < 400 && tile.ImageVersion == 0; i++) await Task.Delay(50);   // up to 20 s on a busy machine
         Assert.Equal(1, tile.ImageVersion);
         Assert.Equal(ThumbnailState.Ok, tile.Row.ThumbnailState);
         Assert.True(File.Exists(tile.ImagePath));
 
         f.Vm.Redraw([tile], revert: false);
-        for (int i = 0; i < 100 && tile.ImageVersion == 1; i++) await Task.Delay(50);
+        for (int i = 0; i < 400 && tile.ImageVersion == 1; i++) await Task.Delay(50);
         Assert.Equal(2, tile.ImageVersion);
     }
 

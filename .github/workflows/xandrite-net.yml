@@ -1,0 +1,40 @@
+# Xandrite.NET: builds the solution on Windows, runs every test (including .7z and .rar with the real 7z.dll), and
+# draws the sample models with the software (WARP) renderer, which every Windows machine has. The thumbnails are
+# uploaded as an artifact so they can be looked at.
+#
+# Only runs when something under Xandrite.NET (or this file) changes; the Electron app has its own workflow.
+name: Xandrite.NET
+
+on:
+  push:
+    paths: ['Xandrite.NET/**', '.github/workflows/xandrite-net.yml']
+  pull_request:
+    paths: ['Xandrite.NET/**', '.github/workflows/xandrite-net.yml']
+  workflow_dispatch:
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    defaults:
+      run:
+        working-directory: Xandrite.NET
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-dotnet@v5
+        with:
+          global-json-file: Xandrite.NET/global.json
+
+      - name: Build
+        run: dotnet build Xandrite.slnx -c Release
+
+      - name: Test
+        run: dotnet test Xandrite.slnx -c Release --no-build
+
+      - name: Draw the samples with WARP
+        run: dotnet src/Xandrite.ThumbTool/bin/Release/net10.0/xandrite-thumb.dll samples -o thumbnails --software
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sample-thumbnails
+          path: Xandrite.NET/thumbnails/*.png

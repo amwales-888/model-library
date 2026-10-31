@@ -139,7 +139,7 @@ public class ArchiveTests
     }
 
     [Fact]
-    public async Task SevenZipAndRarArchivesAreReportedAndTheirModelsKeptUntilTheyCanBeRead()
+    public async Task AnArchiveThatCannotBeReadIsReportedAndItsModelsAreKept()
     {
         using var lib = new TempLibrary();
         lib.Write("kit.7z", "7z archive bytes");
@@ -151,7 +151,7 @@ public class ArchiveTests
                 lib.At("kit.7z") + S + "leg.stl", lib.Root, "ab", 1, 0, 1, 1, lib.At("kit.7z"), "leg.stl");
         });
         var summary = await lib.Scan();
-        Assert.Contains("not available yet", summary.Problems.Single().Message);
+        Assert.StartsWith("could not read this archive", summary.Problems.Single().Message);   // not a real .7z
         Assert.Equal(0, summary.Missing);
         Assert.False(lib.All().Single().Missing);
     }
