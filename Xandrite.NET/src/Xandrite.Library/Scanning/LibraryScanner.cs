@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using Xandrite.Library.Logging;
 
 namespace Xandrite.Library.Scanning;
 
@@ -48,6 +49,9 @@ public sealed class LibraryScanner(LibraryDatabase db, ModelSource? source = nul
 
     public ArchiveLimits Limits { get; init; } = ArchiveLimits.Default;
 
+    /// <summary>Where scans are recorded: start and end, every file hashed, every archive read, every problem.</summary>
+    public ILog Log { get; init; } = NullLog.Instance;
+
     public Task<ScanSummary> ScanAsync(string root, bool includeArchives = true, Action<ScanProgress>? onProgress = null, CancellationToken cancellation = default) =>
         Task.Run(() => ScanCoreAsync(root, includeArchives, onProgress, cancellation), CancellationToken.None);
 
@@ -66,6 +70,7 @@ public sealed class LibraryScanner(LibraryDatabase db, ModelSource? source = nul
         // same millisecond cannot be confused (which would spoil the "new" and "missing" counts).
         long scanId = Math.Max(db.Now(), db.Locked(c => c.Scalar("SELECT COALESCE(MAX(last_seen_scan), 0) FROM locations")) + 1);
         var counts = new Counts();
+        Log.Info("scan.start", ("root", root), ("archives", includeArchives), ("concurrency", Concurrency));
 
         void Report(string? current)
         {
@@ -76,6 +81,7 @@ public sealed class LibraryScanner(LibraryDatabase db, ModelSource? source = nul
         }
         void Problem(string path, string message, bool directory = false)
         {
+            Log.Warn("problem", ("path", path), ("message", message));
             lock (counts)
             {
                 counts.Errors++;
@@ -116,9 +122,11 @@ public sealed class LibraryScanner(LibraryDatabase db, ModelSource? source = nul
         {
             try
             {
+                long started = Stopwatch.GetTimestamp();
                 string sha = await Hashing.HashFileAsync(item.Path, cancellation);
                 Store(item.Path, sha, item.Size, Path.GetExtension(item.Path)[1..].ToLowerInvariant(), item.MtimeMs, null, null, null);
                 Count(c => c.Hashed++);
+                Log.Info("hash", ("path", item.Path), ("sha256", sha), ("size", item.Size), ("ms", (long)Stopwatch.GetElapsedTime(started).TotalMilliseconds));
             }
             catch (OperationCanceledException) when (cancellation.IsCancellationRequested)
             {
@@ -139,12 +147,15 @@ public sealed class LibraryScanner(LibraryDatabase db, ModelSource? source = nul
         async Task ScanArchive(WalkItem item, IArchiveReader reader)
         {
             bool clean = true;
+            long archiveStarted = Stopwatch.GetTimestamp();
+            int models = 0;   // this archive's own count (several archives are read at once, so not the shared total)
             try
             {
                 int nested = await reader.EachModelEntryAsync(item.Path,
                     async entry =>
                     {
                         Count(c => c.Found++);
+                        Interlocked.Increment(ref models);
                         string virtualPath = ArchiveEntryNames.VirtualPath(item.Path, entry.EntryName);
                         var known = db.Locked(c => c.QueryFirst("SELECT size, crc32 FROM locations WHERE path = ?",
                             r => (Size: r.GetInt64(0), Crc: r.GetInt64OrNull(1)), virtualPath));
@@ -157,10 +168,13 @@ public sealed class LibraryScanner(LibraryDatabase db, ModelSource? source = nul
                         }
                         try
                         {
+                            long started = Stopwatch.GetTimestamp();
                             string sha;
                             await using (var stream = entry.Open()) sha = await Hashing.HashStreamAsync(stream, cancellation);
                             Store(virtualPath, sha, entry.Size, entry.Format, entry.MtimeMs, item.Path, entry.EntryName, entry.Crc32);
                             Count(c => c.Hashed++);
+                            Log.Info("hash", ("path", virtualPath), ("sha256", sha), ("size", entry.Size),
+                                ("ms", (long)Stopwatch.GetElapsedTime(started).TotalMilliseconds), ("archive", item.Path));
                         }
                         catch (Exception e) when (e is IOException or InvalidDataException)
                         {
@@ -173,6 +187,8 @@ public sealed class LibraryScanner(LibraryDatabase db, ModelSource? source = nul
                     (entryName, message) => Problem(ArchiveEntryNames.VirtualPath(item.Path, entryName), message),
                     Limits, cancellation);
                 Count(c => { c.Nested += nested; c.Archives++; });
+                Log.Info("archive", ("path", item.Path), ("models", models), ("nested", nested), ("parts", item.Parts),
+                    ("ms", (long)Stopwatch.GetElapsedTime(archiveStarted).TotalMilliseconds));
             }
             catch (OperationCanceledException) when (cancellation.IsCancellationRequested)
             {
@@ -283,6 +299,9 @@ public sealed class LibraryScanner(LibraryDatabase db, ModelSource? source = nul
 
             lock (counts)
             {
+                Log.InfoOrWarn(cancelled || counts.Errors > 0, "scan.end", ("root", root), ("cancelled", cancelled), ("duration_ms", clock.ElapsedMilliseconds), ("found", counts.Found),
+                    ("hashed", counts.Hashed), ("unchanged", counts.Reused), ("new", added), ("moved", moved), ("missing", missing),
+                    ("duplicate_groups", duplicates), ("archives", counts.Archives), ("nested_archives", counts.Nested), ("errors", counts.Errors));
                 return new ScanSummary
                 {
                     Root = root,

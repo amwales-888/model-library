@@ -90,6 +90,18 @@ public sealed class WpfShell : ILibraryShell
         }
     }
 
+    public void OpenFile(string path)
+    {
+        try
+        {
+            Process.Start(new ProcessStartInfo(path) { UseShellExecute = true })?.Dispose();
+        }
+        catch (System.ComponentModel.Win32Exception)
+        {
+            Reveal(path, selectFile: true);   // nothing is set up to open this kind of file
+        }
+    }
+
     public string? PickSaveFile(string title, string suggestedName, string filter)
     {
         var dialog = new SaveFileDialog { Title = title, FileName = suggestedName, Filter = filter, OverwritePrompt = true };

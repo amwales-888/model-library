@@ -9,7 +9,7 @@ There is no browser engine: thumbnails are drawn with Direct3D 11, called direct
 **Status:** the app is usable. It has the library window (folder tree, virtualised thumbnail grid, search, filters,
 sorting, ratings, right-click actions, Manage folders), scanning, the thumbnail queue drawing with Direct3D, and a
 one-time import of the Electron app's library, the interactive viewer, and models inside .zip, .7z and .rar archives.
-Not yet done: the log file and the installer.
+It keeps a log file. Not yet done: the installer.
 
 ## What is in the solution
 
@@ -55,8 +55,25 @@ so existing thumbnails are redrawn.
 
 ## Where the app keeps its data
 
-`%APPDATA%\Xandrite.NET`: `library.sqlite` and a `thumbnails` folder (one `<sha256>.png` per model). Set
-`XANDRITE_NET_DATA` to use another folder, for example a test library.
+`%APPDATA%\Xandrite.NET`: `library.sqlite`, a `thumbnails` folder (one `<sha256>.png` per model) and a `logs`
+folder. Set `XANDRITE_NET_DATA` to use another folder, for example a test library.
+
+## The log file
+
+`logs\xandrite.log` records what the app does, one event per line, in the same format as the Electron app's log:
+
+```
+2026-10-31T02:07:07.132+00:00 INFO  hash path=C:\Models\knot.stl sha256=5d0a8bd0640a… size=1008684 ms=3
+2026-10-31T02:07:07.148+00:00 WARN  problem path=C:\Models\kit.7z\big.stl message="the file is damaged (checksum does not match)"
+2026-10-31T02:07:07.151+00:00 WARN  scan.end root=C:\Models cancelled=false duration_ms=137 found=8 hashed=8 unchanged=0 new=8 …
+```
+
+It covers start-up (version, Windows, SQLite, 7-Zip, the graphics adapter of each renderer), the import from the Electron
+app, scans (every file hashed, every archive read, every problem, the totals), thumbnails (each one with its read and
+draw times, failures with the reason, skips), the viewer (views saved and reverted, ratings), folders added and
+removed, downloads, and any crash. Warnings mark scans and runs that had problems. The file rolls over at 10 MB,
+keeping five older files (`xandrite.log.1` … `.5`), so it cannot fill a disk. If it cannot be written, the app carries
+on without it. Open it from **Preferences ▾ → Show log file**.
 
 **The first start** copies the Electron app's library across, if there is one (`%APPDATA%\xandrite`). The
 database is copied before the window opens; the thumbnail images follow in the background (see the status bar).
@@ -80,7 +97,7 @@ It works like the Electron app's window:
 - **Status bar:** library counts, scan progress (with Cancel), thumbnail progress (with Pause, Resume and Retry failed),
   and Rescan All.
 - **Preferences ▾:** Manage folders… (add several, then they are scanned when the window closes), Search inside
-  archives, Thumbnail preview…, Open data folder.
+  archives, Thumbnail preview…, Open data folder, Show log file.
 - Drop folders on the window to add them.
 
 The grid is a virtualised list of rows, so it stays fast with very large libraries. Thumbnails are decoded on
@@ -190,9 +207,10 @@ This was put together on Linux, where NuGet and Windows weren't available:
 - `Xandrite.Library` and `xandrite-lib`: on Windows, the tests, `info` and `scan` were confirmed working.
 - The library window, thumbnail queue, import and viewer were confirmed working on Windows.
 - `.7z`/`.rar`: the reader was tested here against 7-Zip's own Linux build of the same library (same interfaces), with
-  real archives made by 7-Zip 23.01 and RAR 7.00 (`tests/Xandrite.Library.Tests/Fixtures/archives`). All 138 tests
-  pass (46 core, 70 library, 22 view-model). **Not yet run on Windows:** the same code against `7z.dll`; the CI
-  workflow and your first `dotnet test` will do that.
+  real archives made by 7-Zip 23.01 and RAR 7.00 (`tests/Xandrite.Library.Tests/Fixtures/archives`), and then on
+  Windows against `7z.dll` by the CI workflow.
+- The log file: all 144 tests pass here (46 core, 75 library, 23 view-model). The WPF changes (the Show log file menu,
+  start-up and crash logging in `App`) are small and not yet compiled.
 - The shader and the exact Direct3D pipeline settings were run under Wine's Direct3D 11 to produce the comparison image.
   The COM vtable slot numbers were taken mechanically from the Windows SDK headers.
 - **Not yet run on real Windows:** the C# COM calls themselves, the WPF app (it needs the Windows Desktop SDK to
@@ -201,7 +219,6 @@ This was put together on Linux, where NuGet and Windows weren't available:
 
 ## Next steps
 
-1. The log file (`logger.js`).
-2. Installer and updates (Velopack or MSIX).
-3. Windows integration: thumbnails in Explorer itself (a shell thumbnail provider), the NTFS change journal for
+1. Installer and updates (Velopack or MSIX).
+2. Windows integration: thumbnails in Explorer itself (a shell thumbnail provider), the NTFS change journal for
    instant rescans.

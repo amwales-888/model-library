@@ -153,7 +153,7 @@ public class ViewerViewModelTests
         string path = Path.Combine(f.Dir, "outside.stl");
         File.WriteAllText(path, Stl.Replace("solid t", "solid outside"));
         var viewer = Viewer(f);
-        f.Shell.OpenFile = path;   // as if chosen with Open file…
+        f.Shell.FileToOpen = path;   // as if chosen with Open file…
         await NextFrame(viewer, () => _ = viewer.OpenFileAsync());
         Assert.True(viewer.HasModel);
         Assert.False(viewer.CanUpdate);

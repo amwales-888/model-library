@@ -17,6 +17,9 @@ public sealed record LibraryLocation(string DataFolder)
 
     public string ThumbnailPath(string sha256) => Path.Combine(ThumbnailFolder, sha256 + ".png");
 
+    /// <summary>The log: logs\xandrite.log, with up to five older files beside it (xandrite.log.1 …).</summary>
+    public string LogFile => Path.Combine(DataFolder, "logs", "xandrite.log");
+
     public static LibraryLocation Default() =>
         new(Environment.GetEnvironmentVariable("XANDRITE_NET_DATA") is { Length: > 0 } custom
             ? custom
