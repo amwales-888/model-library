@@ -8,8 +8,8 @@ There is no browser engine: thumbnails are drawn with Direct3D 11, called direct
 
 **Status:** the app is usable. It has the library window (folder tree, virtualised thumbnail grid, search, filters,
 sorting, ratings, right-click actions, Manage folders), scanning, the thumbnail queue drawing with Direct3D, and a
-one-time import of the Electron app's library, and the interactive viewer. Not yet done: .7z/.rar support and the
-installer.
+one-time import of the Electron app's library, the interactive viewer, and models inside .zip, .7z and .rar archives.
+Not yet done: the log file and the installer.
 
 ## What is in the solution
 
@@ -20,12 +20,13 @@ installer.
 | `src/Xandrite.Core` | Everything that needs no GPU: STL and 3MF readers, camera framing, lighting and material values, the view settings stored in each PNG, the PNG writer. No Windows dependencies, so it builds and tests anywhere. |
 | `src/Xandrite.Rendering.Direct3D11` | The renderer. Hand-written COM interop to `d3d11.dll`, `dxgi.dll` and `d3dcompiler_47.dll` (all part of Windows), plus the HLSL shader. No NuGet packages. |
 | `src/Xandrite.ThumbTool` | `xandrite-thumb`, a command-line thumbnail maker for trying real files, timing, scripts and CI. |
-| `src/Xandrite.Library` | The library. `LibraryDatabase` (a port of `db.js`, same schema), `FolderWalker` (`scanner.js`), `LibraryScanner` (`indexer.js`), `ThumbnailQueue` (`thumbnail-queue.js`), `Downloads`, zip reading, `ModelSource`, and `ElectronImport`. SQLite is called through its C API: Windows' own `winsqlite3.dll`. No NuGet packages. |
+| `src/Xandrite.Library` | The library. `LibraryDatabase` (a port of `db.js`, same schema), `FolderWalker` (`scanner.js`), `LibraryScanner` (`indexer.js`), `ThumbnailQueue` (`thumbnail-queue.js`), `Downloads`, `ModelSource`, `ElectronImport`, and the archive readers: zip in .NET, and .7z/.rar through 7-Zip's `7z.dll` (`SevenZip/`). SQLite is called through its C API: Windows' own `winsqlite3.dll`. No NuGet packages. |
 | `src/Xandrite.LibraryTool` | `xandrite-lib`, which inspects a library (on a copy) or scans folders into a test library. |
 | `tests/Xandrite.Core.Tests` | xUnit tests for the readers, framing, view settings and PNG output. |
 | `tests/Xandrite.Library.Tests` | The Electron app's explorer, indexer, zip and thumbnail-queue tests, ported, plus compatibility tests against `Fixtures/electron-library.sqlite`, a library written by the Electron app's own `db.js`. |
 | `tests/Xandrite.Presentation.Tests` | The library window's behaviour: selection, filters, settings, scanning and thumbnails reaching the tiles. |
 | `samples/` | Small test models: a binary STL, an ASCII STL, and a 3MF with colours and a component stored in a separate model file. |
+| `vendor/7zip/` | 7-Zip's `7z.dll` (x64) and its licence. It is copied next to every app and test that reads archives. |
 
 ## How a thumbnail is made
 
@@ -118,8 +119,13 @@ Electron app can read a library written here. Both directions are covered by tes
   files the Electron app indexed count as unchanged and aren't re-hashed on the first .NET scan.
 - **Zip files** are read with `System.IO.Compression`. Entries are matched on size and CRC-32. The Electron app also
   compared entry dates, which .NET reads slightly differently, so dates no longer count. Existing zips are not re-read.
-- **.7z and .rar** need 7-Zip's `7z.dll` loaded in-process. That's the next interop job. Until then these archives
-  are reported once per scan, and the models already recorded inside them are kept as they are, never marked missing.
+- **.7z and .rar** (RAR 4 and 5) are read with 7-Zip's `7z.dll`, loaded into the app. The Electron app ran
+  `7z.exe` as a separate program instead. Solid archives are read in one pass. Split archives (`name.7z.001`, `.002`…)
+  and multi-volume RARs (`name.part1.rar`… or `.r00`) are read as one. 7-Zip checks every file's CRC, so a damaged
+  model is reported while the others in the same archive are still read. Password-protected archives are reported
+  and skipped. Entry names, sizes and CRCs are recorded exactly as the Electron app recorded them, so its archives
+  are recognised as unchanged. If `7z.dll` is missing, these archives are reported and their models kept, never
+  marked missing.
 - Two small improvements over the JS app: scan IDs always increase, even for two scans in the same millisecond, and
   cloud placeholder files (OneDrive) are scanned, while links to folders are still not followed.
 
@@ -171,8 +177,9 @@ dotnet run --project src/Xandrite.ThumbTool -- samples -o thumbnails
 `xandrite-thumb` options: `--size 1024`, `--software` (WARP), `--by-hash` (name files `<sha256>.png` like the
 library), `--view some-thumbnail.png` (reuse a stored view), `--no-z-up`, `--debug`.
 
-The GitHub Actions workflow (`.github/workflows/build.yml`) builds, tests, and draws the samples with WARP on
-`windows-latest`, then uploads the PNGs as an artifact.
+The GitHub Actions workflow (`.github/workflows/xandrite-net.yml` at the root of the repository) builds, tests, and
+draws the samples with WARP on `windows-latest`, then uploads the PNGs as an artifact. It runs only when something
+under `Xandrite.NET` changes.
 
 ## What has been verified, and what has not yet
 
@@ -181,10 +188,11 @@ This was put together on Linux, where NuGet and Windows weren't available:
 - `Xandrite.Core`, the renderer library and `xandrite-thumb` compile. The 39 tests pass (run through a stand-in for xUnit).
   On Windows: the tests, `xandrite-thumb`, the WPF preview and GPU rendering all confirmed working.
 - `Xandrite.Library` and `xandrite-lib`: on Windows, the tests, `info` and `scan` were confirmed working.
-- The library window, thumbnail queue and import were confirmed working on Windows.
-- New in this round: the orbit camera, the viewer view model and its tests (46 core, 56 library and 22 view-model
-  tests in all) pass here. **Not yet compiled:** `ViewerWindow` and the changes to `WpfShell` and `App`, because WPF
-  can't be built on Linux. Paste any build errors and they'll be fixed.
+- The library window, thumbnail queue, import and viewer were confirmed working on Windows.
+- `.7z`/`.rar`: the reader was tested here against 7-Zip's own Linux build of the same library (same interfaces), with
+  real archives made by 7-Zip 23.01 and RAR 7.00 (`tests/Xandrite.Library.Tests/Fixtures/archives`). All 138 tests
+  pass (46 core, 70 library, 22 view-model). **Not yet run on Windows:** the same code against `7z.dll`; the CI
+  workflow and your first `dotnet test` will do that.
 - The shader and the exact Direct3D pipeline settings were run under Wine's Direct3D 11 to produce the comparison image.
   The COM vtable slot numbers were taken mechanically from the Windows SDK headers.
 - **Not yet run on real Windows:** the C# COM calls themselves, the WPF app (it needs the Windows Desktop SDK to
@@ -193,9 +201,7 @@ This was put together on Linux, where NuGet and Windows weren't available:
 
 ## Next steps
 
-1. `7z.dll` loaded in-process for .7z and .rar. Until then, models inside them keep their imported thumbnails and stay
-   "waiting" in the thumbnail count.
-2. The log file (`logger.js`).
-3. Installer and updates (Velopack or MSIX).
-4. Windows integration: thumbnails in Explorer itself (a shell thumbnail provider), the NTFS change journal for
+1. The log file (`logger.js`).
+2. Installer and updates (Velopack or MSIX).
+3. Windows integration: thumbnails in Explorer itself (a shell thumbnail provider), the NTFS change journal for
    instant rescans.

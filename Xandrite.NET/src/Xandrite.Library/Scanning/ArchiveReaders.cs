@@ -19,7 +19,8 @@ public sealed record ArchiveLimits
 }
 
 /// <summary>A model inside an archive.</summary>
-public sealed record ArchiveEntry(string EntryName, string Format, long Size, double MtimeMs, long Crc32, Func<Stream> Open);
+/// <param name="Crc32">The entry's CRC-32 from the archive's directory, if it records one (RAR 5 can use another hash).</param>
+public sealed record ArchiveEntry(string EntryName, string Format, long Size, double MtimeMs, long? Crc32, Func<Stream> Open);
 
 /// <summary>An entry that is no longer where the library found it, or an archive that is gone.</summary>
 public sealed class ModelGoneException(string message, Exception? inner = null) : Exception(message, inner);
@@ -147,7 +148,8 @@ public static class Hashing
 /// <summary>The bytes of a model, wherever it lives: a loose file or an entry inside an archive.</summary>
 public sealed class ModelSource(IReadOnlyList<IArchiveReader> readers)
 {
-    public static ModelSource Default { get; } = new([new ZipArchiveReader()]);
+    /// <summary>Zip files in .NET; .7z and .rar with 7-Zip's library (7z.dll next to the app).</summary>
+    public static ModelSource Default { get; } = new([new ZipArchiveReader(), new SevenZip.SevenZipArchiveReader()]);
 
     public IReadOnlyList<IArchiveReader> Readers { get; } = readers;
 

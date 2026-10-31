@@ -222,9 +222,9 @@ public sealed class LibraryScanner(LibraryDatabase db, ModelSource? source = nul
                 var reader = _source.ReaderFor(item.Path);
                 if (reader is null)
                 {
-                    // .7z and .rar: reading them needs 7-Zip, which is not wired in yet. Keep their models as they are.
+                    // No reader for this kind of archive: keep its models as they are.
                     db.Locked(c => c.Execute(MarkContainerSeen, scanId, item.Path));
-                    Problem(item.Path, "could not read this archive: reading " + Path.GetExtension(item.Path) + " archives is not available yet");
+                    Problem(item.Path, "could not read this archive: there is no reader for " + Path.GetExtension(item.Path) + " archives");
                     Report(item.Path);
                     continue;
                 }

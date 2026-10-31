@@ -5,7 +5,8 @@
     library.sqlite carries over), scanning folders, hashing, and reading models inside zip files.
 
     SQLite is called through its C API: on Windows that is winsqlite3.dll, the copy built into Windows,
-    so nothing is installed or shipped. No NuGet packages.
+    so nothing is installed or shipped. .7z and .rar archives are read with 7-Zip's own 7z.dll (vendor/7zip),
+    loaded in-process. No NuGet packages.
   -->
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
@@ -19,6 +20,12 @@
 
   <ItemGroup>
     <InternalsVisibleTo Include="Xandrite.Library.Tests" />
+  </ItemGroup>
+
+  <!-- 7-Zip's archive library, for .7z and .rar. It goes next to every app and test that uses this library. -->
+  <ItemGroup>
+    <None Include="..\..\vendor\7zip\win-x64\7z.dll" Link="7z.dll" CopyToOutputDirectory="PreserveNewest" Visible="false" />
+    <None Include="..\..\vendor\7zip\License.txt" Link="7zip-License.txt" CopyToOutputDirectory="PreserveNewest" Visible="false" />
   </ItemGroup>
 
 </Project>
