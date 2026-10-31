@@ -53,6 +53,7 @@ public sealed class ThumbnailQueue : IAsyncDisposable
     private string? _current;
     private ThumbnailSpeed _speed;
     private readonly ConcurrentDictionary<ArchiveStream, byte> _streams = new();
+    private int _archivesOpen;   // archives taken from the work but not finished: idle workers stay to help (under _gate)
 
     public ThumbnailQueue(LibraryDatabase db, LibraryLocation location, Func<IModelRenderer> createRenderer, ModelSource? source = null, int workers = 2)
     {
@@ -314,7 +315,7 @@ public sealed class ThumbnailQueue : IAsyncDisposable
             var limits = Limits;
             if (slot >= limits.Workers)
             {
-                if (work.IsEmpty && _streams.IsEmpty) return;
+                lock (_gate) if (work.IsEmpty && _archivesOpen == 0) return;
                 await Task.Delay(250, cancellation);
                 continue;
             }
@@ -327,7 +328,15 @@ public sealed class ThumbnailQueue : IAsyncDisposable
                 await DrawReadAsync(slot, read);
                 continue;
             }
-            if (work.TryDequeue(out var item))
+            WorkItem? item;
+            bool archivesOpen;
+            lock (_gate)
+            {
+                // Taken and counted together, so no worker can see "no work, no archives" while one is being opened.
+                if (work.TryDequeue(out item) && item is FromArchive) _archivesOpen++;
+                archivesOpen = _archivesOpen > 0;
+            }
+            if (item is not null)
             {
                 if (item is OneModel one)
                 {
@@ -340,7 +349,7 @@ public sealed class ThumbnailQueue : IAsyncDisposable
                 }
                 continue;
             }
-            if (_streams.IsEmpty) return;
+            if (!archivesOpen) return;
             await WaitForReadAsync(cancellation);   // nothing new: wait for an archive being read to produce a model
         }
     }
@@ -389,6 +398,18 @@ public sealed class ThumbnailQueue : IAsyncDisposable
     /// If the archive cannot be read at all, the models it had not delivered get the same answer as when read one by one.
     /// </summary>
     private async Task ReadArchiveAsync(int slot, FromArchive group, CancellationToken cancellation)
+    {
+        try
+        {
+            await ReadArchiveCoreAsync(slot, group, cancellation);
+        }
+        finally
+        {
+            lock (_gate) _archivesOpen--;
+        }
+    }
+
+    private async Task ReadArchiveCoreAsync(int slot, FromArchive group, CancellationToken cancellation)
     {
         var reader = _source.ReaderFor(group.Archive);
         if (reader is null)

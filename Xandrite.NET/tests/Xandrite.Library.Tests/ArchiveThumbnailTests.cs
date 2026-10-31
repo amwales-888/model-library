@@ -58,7 +58,6 @@ public class ArchiveThumbnailTests
     private sealed class CountingReader(IArchiveReader inner) : IArchiveReader
     {
         public int OneEntry, ManyEntries;
-        public Action<string>? BeforeMany;
 
         public bool CanRead(string archivePath) => inner.CanRead(archivePath);
 
@@ -74,7 +73,6 @@ public class ArchiveThumbnailTests
         public Task ReadEntriesAsync(string archivePath, IReadOnlyCollection<string> entryNames, long maxBytes, Func<EntryRead, Task> onEntry, CancellationToken cancellation)
         {
             Interlocked.Increment(ref ManyEntries);
-            BeforeMany?.Invoke(archivePath);
             return inner.ReadEntriesAsync(archivePath, entryNames, maxBytes, onEntry, cancellation);
         }
     }
