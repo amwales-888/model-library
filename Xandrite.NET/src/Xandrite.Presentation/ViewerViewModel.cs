@@ -482,11 +482,7 @@ public sealed class ViewerViewModel : ObservableObject, IDisposable
         try
         {
             var (png, view) = await DrawThumbnailAsync(Look.ThumbnailSize);
-            Directory.CreateDirectory(_location.ThumbnailFolder);
-            string final = _location.ThumbnailPath(sha);
-            string temporary = final + ".tmp";
-            await File.WriteAllBytesAsync(temporary, png);
-            File.Move(temporary, final, overwrite: true);   // never a half-written image under the real name
+            await ThumbnailFiles.WriteAsync(_location.ThumbnailPath(sha), png);   // the queue may be writing it too
 
             _db.SetView(sha, new SavedView([view.Position.X, view.Position.Y, view.Position.Z], [view.Target.X, view.Target.Y, view.Target.Z], view.FovDeg, view.ZUp));
             _db.RecordThumbnail(sha, ThumbnailState.Ok, Look.RenderVersion, Look.ThumbnailSize);

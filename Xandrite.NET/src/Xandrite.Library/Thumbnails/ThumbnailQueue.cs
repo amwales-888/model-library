@@ -331,10 +331,7 @@ public sealed class ThumbnailQueue : IAsyncDisposable
 
         try
         {
-            string final = ImagePath(job.Sha256);
-            string temporary = final + ".tmp";
-            await File.WriteAllBytesAsync(temporary, result.Png, CancellationToken.None);
-            File.Move(temporary, final, overwrite: true);   // never leaves a half-written image under the real name
+            await ThumbnailFiles.WriteAsync(ImagePath(job.Sha256), result.Png);   // never a half-written image under the real name
         }
         catch (Exception e) when (e is IOException or UnauthorizedAccessException)
         {

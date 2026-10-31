@@ -125,6 +125,8 @@ public class ViewerViewModelTests
         await using var cleanup = f;
         viewer.Rotate(100, 0);
         await viewer.UpdateThumbnailAsync();
+        Assert.Equal("", viewer.UpdateNote is { } note && note.StartsWith("Could not") ? note : "");
+        Assert.True(viewer.HasCustomView);
         string? reverted = null;
         viewer.ViewReverted += sha => reverted = sha;
         viewer.Revert();
