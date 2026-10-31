@@ -115,8 +115,9 @@ public class LogTests
 
         string text = File.ReadAllText(file);
         Assert.Matches(@" INFO  thumbs\.start pending=2", text);
-        Assert.Matches(@" INFO  thumb\.ok path=\S*good\.stl sha256=[0-9a-f]{64} ms=\d+ read_ms=\d+", text);
-        Assert.Matches(@" WARN  thumb\.fail path=\S*bad\.stl sha256=[0-9a-f]{64} ms=\d+ message=""This is not a valid STL", text);
+        // A path with spaces or other characters (Windows temp folders such as RUNNER~1) is written in quotes.
+        Assert.Matches(@" INFO  thumb\.ok path=[^\n]*?good\.stl""? sha256=[0-9a-f]{64} ms=\d+ read_ms=\d+", text);
+        Assert.Matches(@" WARN  thumb\.fail path=[^\n]*?bad\.stl""? sha256=[0-9a-f]{64} ms=\d+ message=""This is not a valid STL", text);
         Assert.Matches(@" WARN  thumbs\.end duration_ms=\d+ made=1 failed=1", text);
     }
 }
