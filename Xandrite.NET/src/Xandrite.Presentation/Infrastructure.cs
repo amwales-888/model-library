@@ -70,6 +70,9 @@ public interface ILibraryShell
     /// <summary>A file to open. Null if cancelled.</summary>
     string? PickOpenFile(string title, string filter);
 
+    /// <summary>Opens a file in the program Windows uses for it (shows it in Explorer if there is none).</summary>
+    void OpenFile(string path);
+
     /// <summary>Shows a model in the viewer.</summary>
     void OpenModel(ViewerDocument document);
 }

@@ -1,7 +1,10 @@
 using System.IO;
+using System.Reflection;
 using System.Windows;
 using Xandrite.Library;
+using Xandrite.Library.Logging;
 using Xandrite.Library.Sqlite;
+using Xandrite.Library.SevenZip;
 using Xandrite.Library.Thumbnails;
 using Xandrite.Presentation;
 using Xandrite.Rendering.Direct3D11;
@@ -18,6 +21,7 @@ public partial class App : Application
     private LibraryDatabase? _db;
     private LibraryViewModel? _library;
     private ViewerViewModel? _viewer;
+    private ILog _log = NullLog.Instance;
 
     protected override void OnStartup(StartupEventArgs e)
     {
@@ -33,13 +37,31 @@ public partial class App : Application
         }
 
         var location = LibraryLocation.Default();
+        try
+        {
+            _log = new FileLog(location.LogFile);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            _log = NullLog.Instance;   // no log is better than no app
+        }
+        WatchForCrashes();
+        _log.Info("app.start",
+            ("version", Assembly.GetExecutingAssembly().GetName().Version?.ToString(3)),
+            ("os", Environment.OSVersion.VersionString),
+            ("dotnet", Environment.Version.ToString()),
+            ("data", location.DataFolder),
+            ("sqlite", SafeSqliteVersion()),
+            ("sevenzip", SevenZipArchiveReader.IsAvailable ? "7z.dll" : "not available"));
+
         string? electron = ElectronImport.FindElectronDataFolder();
         try
         {
-            ElectronImport.CopyDatabaseIfNew(location, electron);
+            if (ElectronImport.CopyDatabaseIfNew(location, electron)) _log.Info("data.imported", ("from", electron), ("database", location.DatabaseFile));
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or SqliteException)
         {
+            _log.Error("data.import_failed", ("from", electron), ("message", ex.Message));
             MessageBox.Show("The library of the Electron app could not be copied, so Xandrite starts with an empty library.\n\n" + ex.Message,
                 "Xandrite", MessageBoxButton.OK, MessageBoxImage.Warning);
         }
@@ -50,6 +72,8 @@ public partial class App : Application
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or SqliteException or DllNotFoundException)
         {
+            _log.Error("library.open_failed", ("database", location.DatabaseFile), ("message", ex.Message));
+            _log.Flush();
             MessageBox.Show("The library could not be opened:\n\n" + ex.Message, "Xandrite", MessageBoxButton.OK, MessageBoxImage.Error);
             Shutdown(1);
             return;
@@ -57,14 +81,14 @@ public partial class App : Application
 
         // A few workers draw at once, each with its own Direct3D renderer.
         int workers = Math.Clamp(Environment.ProcessorCount / 4, 1, 4);
-        var queue = new ThumbnailQueue(_db, location, () => D3D11Renderer.Create(), workers: workers);
+        var queue = new ThumbnailQueue(_db, location, CreateRenderer, workers: workers) { Log = _log };
 
         var shell = new WpfShell();
         var dispatcher = new WpfDispatcher(Dispatcher);
-        _library = new LibraryViewModel(_db, location, queue, shell, dispatcher);
+        _library = new LibraryViewModel(_db, location, queue, shell, dispatcher, log: _log);
 
         // The viewer: what it changes (thumbnail, view, rating) shows in the library grid straight away.
-        _viewer = new ViewerViewModel(_db, location, queue, () => D3D11Renderer.Create(), shell, dispatcher);
+        _viewer = new ViewerViewModel(_db, location, queue, CreateRenderer, shell, dispatcher, _log);
         _viewer.ThumbnailReplaced += _library.ApplyThumbnailReplaced;
         _viewer.ViewReverted += _library.ApplyViewReverted;
         _viewer.RatingChanged += _library.ApplyRating;
@@ -90,11 +114,13 @@ public partial class App : Application
                 library.ImportText = $"Bringing thumbnails across from the Electron app: {p.Done:N0} of {p.Total:N0}");
             try
             {
-                await Task.Run(() => ElectronImport.CopyThumbnailsAsync(_db, location, electron, progress));
+                int copied = await Task.Run(() => ElectronImport.CopyThumbnailsAsync(_db, location, electron, progress));
+                _log.Info("data.thumbnails_imported", ("from", electron), ("copied", copied));
                 library.ImportText = "";
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
             {
+                _log.Warn("data.thumbnails_import_failed", ("from", electron), ("message", ex.Message));
                 library.ImportText = "Some thumbnails could not be copied from the Electron app: " + ex.Message;
             }
             library.RefreshAll();   // show the copied images
@@ -102,8 +128,40 @@ public partial class App : Application
         _library.StartThumbnails();
     }
 
+    /// <summary>Makes a renderer for a thumbnail worker or the viewer, and records which graphics adapter it uses.</summary>
+    private D3D11Renderer CreateRenderer()
+    {
+        var renderer = D3D11Renderer.Create();
+        _log.Info("renderer.start", ("adapter", renderer.AdapterDescription), ("software", renderer.IsSoftware), ("msaa", renderer.SampleCount));
+        return renderer;
+    }
+
+    private static string SafeSqliteVersion()
+    {
+        try { return SqliteConnection.Version; }
+        catch (DllNotFoundException) { return "not found"; }
+    }
+
+    /// <summary>Anything that would crash the app (or that was silently lost) is written to the log first.</summary>
+    private void WatchForCrashes()
+    {
+        DispatcherUnhandledException += (_, e) =>
+        {
+            _log.Error("app.exception", ("where", "ui"), ("message", e.Exception.ToString()));
+            _log.Flush();
+        };
+        AppDomain.CurrentDomain.UnhandledException += (_, e) =>
+        {
+            _log.Error("app.exception", ("where", "background"), ("message", e.ExceptionObject.ToString()));
+            _log.Flush();
+        };
+        TaskScheduler.UnobservedTaskException += (_, e) =>
+            _log.Error("app.rejection", ("message", e.Exception.ToString()));
+    }
+
     protected override void OnExit(ExitEventArgs e)
     {
+        _log.Info("app.quit");
         _viewer?.Close();
         // Let the thumbnail workers finish the model in hand (a few seconds at most), then close the database.
         if (_library is not null)
@@ -112,6 +170,7 @@ public partial class App : Application
             Task.Run(() => library.DisposeAsync().AsTask()).Wait(TimeSpan.FromSeconds(5));
         }
         _db?.Dispose();
+        (_log as IDisposable)?.Dispose();
         _singleInstance?.Dispose();
         base.OnExit(e);
     }

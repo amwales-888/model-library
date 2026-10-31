@@ -27,7 +27,7 @@ public class LibraryViewModelTests
         public (string Path, bool SelectFile)? Revealed;
         public ViewerDocument? Opened;
         public string? SaveTo;
-        public string? OpenFile;
+        public string? FileToOpen;
 
         public string? PickFolder(string title) => FolderToPick;
         public RemoveChoice ConfirmRemoveFolder(string folder, long files) => RemoveAnswer;
@@ -35,8 +35,10 @@ public class LibraryViewModelTests
         public void CopyText(string text) => Clipboard = text;
         public void Reveal(string path, bool selectFile) => Revealed = (path, selectFile);
         public string? PickSaveFile(string title, string suggestedName, string filter) => SaveTo;
-        public string? PickOpenFile(string title, string filter) => OpenFile;
+        public string? PickOpenFile(string title, string filter) => FileToOpen;
         public void OpenModel(ViewerDocument document) => Opened = document;
+        public string? OpenedFile;
+        public void OpenFile(string path) => OpenedFile = path;
     }
 
     /// <summary>A library on disk with a few models, and a view model over it.</summary>
@@ -313,5 +315,26 @@ public class LibraryViewModelTests
         {
             System.Globalization.CultureInfo.CurrentCulture = culture;
         }
+    }
+
+    [Fact]
+    public async Task ShowLogFileOpensTheLogWithWhatHasHappenedSoFar()
+    {
+        await using var f = new Fixture(files: 2);
+        string file = Path.Combine(f.Dir, "logs", "xandrite.log");
+        using var log = new Library.Logging.FileLog(file, flushMs: 60_000);
+        var vm = new LibraryViewModel(f.Db, f.Location, f.Queue, f.Shell, new ImmediateDispatcher(), log: log) { SearchDelay = TimeSpan.Zero };
+        vm.Initialize();
+        f.Shell.FolderToPick = f.Models;
+        await vm.AddFolderAsync();
+        vm.SelectAll();
+        vm.Rate(3);
+
+        vm.ShowLog();
+        Assert.Equal(file, f.Shell.OpenedFile);
+        string text = File.ReadAllText(file);   // written before it was opened, though the timer had not fired
+        Assert.Contains(" folder.added root=", text);
+        Assert.Contains(" scan.end ", text);
+        Assert.Contains(" ratings.set models=2 stars=3", text);
     }
 }

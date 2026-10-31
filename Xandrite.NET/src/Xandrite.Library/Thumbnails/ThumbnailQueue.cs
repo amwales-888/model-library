@@ -3,6 +3,7 @@ using System.Diagnostics;
 using System.Numerics;
 using System.Security.Cryptography;
 using Xandrite.Framing;
+using Xandrite.Library.Logging;
 using Xandrite.Library.Scanning;
 using Xandrite.Loading;
 using Xandrite.Rendering;
@@ -61,6 +62,9 @@ public sealed class ThumbnailQueue : IAsyncDisposable
     /// <summary>Models larger than this are not drawn (recorded as failed with a reason).</summary>
     public long MaxBytes { get; init; } = 512L * 1024 * 1024;
 
+    /// <summary>Where the queue records each thumbnail (with its timings), failures, skips and totals.</summary>
+    public ILog Log { get; init; } = NullLog.Instance;
+
     public event Action<ThumbnailQueueStatus>? Progress;
     public event Action<ThumbnailJobDone>? JobDone;
     public event Action? Idle;
@@ -109,6 +113,7 @@ public sealed class ThumbnailQueue : IAsyncDisposable
             _paused = true;
             _resumed = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         }
+        Log.Info("thumbs.paused");
         Emit();
     }
 
@@ -123,6 +128,7 @@ public sealed class ThumbnailQueue : IAsyncDisposable
             {
                 _paused = false;
                 _resumed.TrySetResult();
+                Log.Info("thumbs.resumed");
             }
         }
         if (start) Start();
@@ -147,10 +153,12 @@ public sealed class ThumbnailQueue : IAsyncDisposable
     private async Task RunAsync()
     {
         var cancellation = _cancel.Token;
+        long started = Stopwatch.GetTimestamp();
         try
         {
             Directory.CreateDirectory(_location.ThumbnailFolder);
             ForgetMissingImages();
+            Log.Info("thumbs.start", ("pending", _db.GetThumbnailCounts(Look.RenderVersion).Pending), ("workers", _renderers.Length));
 
             while (!cancellation.IsCancellationRequested)
             {
@@ -190,12 +198,16 @@ public sealed class ThumbnailQueue : IAsyncDisposable
         catch (Exception e)
         {
             lock (_gate) _blocked = "The thumbnail queue stopped: " + e.Message;
+            Log.Error("thumbs.crashed", ("message", e.ToString()));
         }
         finally
         {
             bool restart;
             lock (_gate)
             {
+                Log.InfoOrWarn(_failed > 0 || cancellation.IsCancellationRequested, "thumbs.end",
+                    ("duration_ms", (long)Stopwatch.GetElapsedTime(started).TotalMilliseconds), ("made", _done), ("failed", _failed),
+                    ("skipped", _skipped), ("cancelled", cancellation.IsCancellationRequested));
                 _current = null;
                 _active = false;
                 _paused = false;
@@ -245,6 +257,10 @@ public sealed class ThumbnailQueue : IAsyncDisposable
 
     private async Task ProcessAsync(int slot, ThumbnailJobRow job, CancellationToken cancellation)
     {
+        long started = Stopwatch.GetTimestamp();
+        long Ms() => (long)Stopwatch.GetElapsedTime(started).TotalMilliseconds;
+        void Fail(ThumbnailJobRow failed, string message) => FailJob(failed, message, Ms());
+
         if (job.Size > MaxBytes)
         {
             Fail(job, $"The file is too large to thumbnail (limit {MaxBytes / 1048576} MB).");
@@ -258,12 +274,12 @@ public sealed class ThumbnailQueue : IAsyncDisposable
         }
         catch (ModelGoneException)
         {
-            Stale(job);   // gone since the last scan
+            Stale(job, "the file is no longer where the scan found it");
             return;
         }
-        catch (NotSupportedException)
+        catch (NotSupportedException e)
         {
-            Stale(job);   // inside a .7z or .rar, which cannot be read yet: keep any old image until it can
+            Stale(job, e.Message);   // an archive that cannot be read here (7z.dll missing): keep any old image
             return;
         }
         catch (OperationCanceledException)
@@ -278,15 +294,18 @@ public sealed class ThumbnailQueue : IAsyncDisposable
 
         if (Convert.ToHexStringLower(SHA256.HashData(bytes)) != job.Sha256)
         {
-            Stale(job);   // the file changed since it was scanned
+            Stale(job, "the file changed since it was scanned");
             return;
         }
+        long readMs = Ms();
 
         ThumbnailResult result;
+        SavedView? usedView;
         try
         {
             var renderer = _renderers[slot] ??= _createRenderer();
-            var view = _db.GetView(job.Sha256) is { } saved
+            usedView = _db.GetView(job.Sha256);
+            var view = usedView is { } saved
                 ? new StoredView(ToVector(saved.Position), ToVector(saved.Target), (float)saved.FovDeg, saved.ZUp)
                 : null;
             result = new ThumbnailGenerator(renderer).Generate(new ThumbnailJob(bytes, job.Format, Path.GetFileName(job.Path), job.Sha256, view));
@@ -297,6 +316,7 @@ public sealed class ThumbnailQueue : IAsyncDisposable
             _renderers[slot]?.Dispose();
             _renderers[slot] = null;
             lock (_gate) _blocked = e.Message;
+            Log.Error("thumbs.blocked", ("message", e.Message), ("device_lost", e.DeviceLost));
             Emit();
             return;
         }
@@ -311,37 +331,53 @@ public sealed class ThumbnailQueue : IAsyncDisposable
             return;
         }
 
-        try
+        using (await ThumbnailFiles.LockAsync(job.Sha256))
         {
-            string final = ImagePath(job.Sha256);
-            string temporary = final + ".tmp";
-            await File.WriteAllBytesAsync(temporary, result.Png, CancellationToken.None);
-            File.Move(temporary, final, overwrite: true);   // never leaves a half-written image under the real name
+            // The viewer may have saved (or dropped) a view while this was drawing: then its image is the right one,
+            // and a revert has already put the model back in the queue.
+            if (!SameView(usedView, _db.GetView(job.Sha256)))
+            {
+                Log.Info("thumb.skip", ("path", job.Path), ("sha256", job.Sha256), ("reason", "the view was changed while drawing"));
+                lock (_gate) _skipped++;
+                Emit();
+                return;
+            }
+            try
+            {
+                await ThumbnailFiles.WriteAsync(ImagePath(job.Sha256), result.Png);   // never a half-written image under the real name
+            }
+            catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+            {
+                Fail(job, "Could not save the thumbnail: " + e.Message);
+                return;
+            }
+            _db.RecordThumbnail(job.Sha256, ThumbnailState.Ok, Look.RenderVersion, Look.ThumbnailSize);
         }
-        catch (Exception e) when (e is IOException or UnauthorizedAccessException)
-        {
-            Fail(job, "Could not save the thumbnail: " + e.Message);
-            return;
-        }
-
-        _db.RecordThumbnail(job.Sha256, ThumbnailState.Ok, Look.RenderVersion, Look.ThumbnailSize);
+        Log.Info("thumb.ok", ("path", job.Path), ("sha256", job.Sha256), ("ms", Ms()), ("read_ms", readMs), ("size", job.Size), ("triangles", result.Triangles));
         lock (_gate) _done++;
         JobDone?.Invoke(new ThumbnailJobDone(job.Sha256, ThumbnailState.Ok, null));
         Emit();
     }
 
+    private static bool SameView(SavedView? a, SavedView? b) =>
+        a is null || b is null
+            ? a is null && b is null
+            : a.Position.AsSpan().SequenceEqual(b.Position) && a.Target.AsSpan().SequenceEqual(b.Target) && a.FovDeg == b.FovDeg && a.ZUp == b.ZUp;
+
     private static Vector3 ToVector(double[] v) => new((float)v[0], (float)v[1], (float)v[2]);
 
-    private void Fail(ThumbnailJobRow job, string message)
+    private void FailJob(ThumbnailJobRow job, string message, long ms)
     {
+        Log.Warn("thumb.fail", ("path", job.Path), ("sha256", job.Sha256), ("ms", ms), ("message", message));
         _db.RecordThumbnail(job.Sha256, ThumbnailState.Failed, Look.RenderVersion, error: message);
         lock (_gate) _failed++;
         JobDone?.Invoke(new ThumbnailJobDone(job.Sha256, ThumbnailState.Failed, message));
         Emit();
     }
 
-    private void Stale(ThumbnailJobRow job)
+    private void Stale(ThumbnailJobRow job, string reason)
     {
+        Log.Warn("thumb.skip", ("path", job.Path), ("sha256", job.Sha256), ("reason", reason));
         _skip[job.Sha256] = 0;
         lock (_gate) _skipped++;
     }

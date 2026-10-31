@@ -106,6 +106,7 @@
                         <Separator />
                         <MenuItem Header="Thumbnail preview…" Click="OnOpenPreview" />
                         <MenuItem Header="Open data folder" Command="{Binding OpenDataFolderCommand}" />
+                        <MenuItem Header="Show log file" Command="{Binding ShowLogCommand}" />
                     </MenuItem>
                 </Menu>
             </DockPanel>

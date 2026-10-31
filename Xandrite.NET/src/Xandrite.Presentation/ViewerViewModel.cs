@@ -4,6 +4,7 @@ using System.Security.Cryptography;
 using Xandrite.Framing;
 using Xandrite.Geometry;
 using Xandrite.Library;
+using Xandrite.Library.Logging;
 using Xandrite.Library.Thumbnails;
 using Xandrite.Loading;
 using Xandrite.Rendering;
@@ -28,6 +29,7 @@ public sealed class ViewerViewModel : ObservableObject, IDisposable
     private readonly Func<IModelRenderer> _createRenderer;
     private readonly ILibraryShell _shell;
     private readonly IUiDispatcher _ui;
+    private readonly ILog _log;
 
     private readonly object _renderLock = new();
     private IModelRenderer? _renderer;
@@ -53,8 +55,9 @@ public sealed class ViewerViewModel : ObservableObject, IDisposable
     private int _exportSize = Look.ThumbnailSize;
     private string _adapter = "";
 
-    public ViewerViewModel(LibraryDatabase db, LibraryLocation location, ThumbnailQueue queue, Func<IModelRenderer> createRenderer, ILibraryShell shell, IUiDispatcher ui)
+    public ViewerViewModel(LibraryDatabase db, LibraryLocation location, ThumbnailQueue queue, Func<IModelRenderer> createRenderer, ILibraryShell shell, IUiDispatcher ui, ILog? log = null)
     {
+        _log = log ?? NullLog.Instance;
         _db = db;
         _location = location;
         _queue = queue;
@@ -164,6 +167,7 @@ public sealed class ViewerViewModel : ObservableObject, IDisposable
         {
             if (value is null || !Set(ref _rating, value) || _loading || _sha is null || !CanRate) return;
             _db.SetRating(_sha, value.Stars);
+            _log.Info("rating.set", ("sha256", _sha), ("stars", value.Stars));
             RatingNote = "Saved.";
             RatingChanged?.Invoke(_sha, value.Stars);
         }
@@ -258,6 +262,7 @@ public sealed class ViewerViewModel : ObservableObject, IDisposable
         }
         catch (ModelFormatException e)
         {
+            _log.Warn("viewer.unreadable", ("name", document.Name), ("message", e.Message));
             if (token == _loadToken) StatusText = "Could not read " + document.Name + ": " + e.Message;
             return;
         }
@@ -387,6 +392,7 @@ public sealed class ViewerViewModel : ObservableObject, IDisposable
             }
             else if (task.Exception?.InnerException is { } error)
             {
+                _log.Error("viewer.render_failed", ("message", error.Message));
                 StatusText = "The model could not be drawn: " + error.Message;
                 _pending = false;
             }
@@ -476,21 +482,25 @@ public sealed class ViewerViewModel : ObservableObject, IDisposable
         try
         {
             var (png, view) = await DrawThumbnailAsync(Look.ThumbnailSize);
-            Directory.CreateDirectory(_location.ThumbnailFolder);
-            string final = _location.ThumbnailPath(sha);
-            string temporary = final + ".tmp";
-            await File.WriteAllBytesAsync(temporary, png);
-            File.Move(temporary, final, overwrite: true);   // never a half-written image under the real name
-
-            _db.SetView(sha, new SavedView([view.Position.X, view.Position.Y, view.Position.Z], [view.Target.X, view.Target.Y, view.Target.Z], view.FovDeg, view.ZUp));
-            _db.RecordThumbnail(sha, ThumbnailState.Ok, Look.RenderVersion, Look.ThumbnailSize);
-            _queue.Skip(sha);   // in case it was waiting in the queue
+            // Off the UI thread, so a Revert waiting for the same lock on the UI thread cannot hold this up.
+            await Task.Run(async () =>
+            {
+                using (await ThumbnailFiles.LockAsync(sha))   // the queue may be drawing this model too
+                {
+                    await ThumbnailFiles.WriteAsync(_location.ThumbnailPath(sha), png);
+                    _db.SetView(sha, new SavedView([view.Position.X, view.Position.Y, view.Position.Z], [view.Target.X, view.Target.Y, view.Target.Z], view.FovDeg, view.ZUp));
+                    _db.RecordThumbnail(sha, ThumbnailState.Ok, Look.RenderVersion, Look.ThumbnailSize);
+                    _queue.Skip(sha);   // in case it was waiting in the queue
+                }
+            });
             HasCustomView = true;
+            _log.Info("view.saved", ("sha256", sha), ("fov_deg", view.FovDeg), ("z_up", view.ZUp));
             UpdateNote = "Thumbnail updated in the library.";
             ThumbnailReplaced?.Invoke(sha);
         }
         catch (Exception e) when (e is IOException or UnauthorizedAccessException or RendererException)
         {
+            _log.Error("view.save_failed", ("sha256", sha), ("message", e.Message));
             UpdateNote = "Could not update: " + e.Message;
         }
     }
@@ -499,11 +509,15 @@ public sealed class ViewerViewModel : ObservableObject, IDisposable
     public void Revert()
     {
         if (_sha is not { } sha || !HasCustomView) return;
-        _db.DeleteView(sha);
-        _db.DeleteThumbnailRow(sha);
-        _queue.Unskip(sha);
+        using (ThumbnailFiles.Lock(sha))   // so a drawing of the saved view cannot land after this
+        {
+            _db.DeleteView(sha);
+            _db.DeleteThumbnailRow(sha);
+            _queue.Unskip(sha);
+        }
         _queue.Start();
         HasCustomView = false;
+        _log.Info("view.reverted", ("sha256", sha));
         ResetView();
         UpdateNote = "Back to the automatic view. The thumbnail is being drawn again.";
         ViewReverted?.Invoke(sha);

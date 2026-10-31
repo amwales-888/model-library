@@ -2,6 +2,7 @@ using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.Globalization;
 using Xandrite.Library;
+using Xandrite.Library.Logging;
 using Xandrite.Library.Scanning;
 using Xandrite.Library.Thumbnails;
 
@@ -27,6 +28,7 @@ public sealed class LibraryViewModel : ObservableObject, IAsyncDisposable
     private readonly ModelSource _source;
     private readonly ILibraryShell _shell;
     private readonly IUiDispatcher _ui;
+    private readonly ILog _log;
 
     private List<TileViewModel> _tiles = [];
     private Dictionary<string, List<TileViewModel>> _bySha = [];
@@ -64,8 +66,9 @@ public sealed class LibraryViewModel : ObservableObject, IAsyncDisposable
     private readonly Stopwatch _lastThumbStatus = Stopwatch.StartNew();
     private bool _thumbStatusQueued;
 
-    public LibraryViewModel(LibraryDatabase db, LibraryLocation location, ThumbnailQueue queue, ILibraryShell shell, IUiDispatcher ui, ModelSource? source = null)
+    public LibraryViewModel(LibraryDatabase db, LibraryLocation location, ThumbnailQueue queue, ILibraryShell shell, IUiDispatcher ui, ModelSource? source = null, ILog? log = null)
     {
+        _log = log ?? NullLog.Instance;
         _db = db;
         _location = location;
         _queue = queue;
@@ -84,6 +87,7 @@ public sealed class LibraryViewModel : ObservableObject, IAsyncDisposable
         ClearSelectionCommand = new RelayCommand(ClearSelection);
         ToggleDirectionCommand = new RelayCommand(() => Descending = !Descending);
         OpenDataFolderCommand = new RelayCommand(() => _shell.Reveal(_location.DataFolder, selectFile: false));
+        ShowLogCommand = new RelayCommand(ShowLog);
 
         _queue.JobDone += done => _ui.Post(() => OnThumbnailDone(done));
         _queue.Progress += _ => QueueThumbnailStatus();
@@ -133,6 +137,15 @@ public sealed class LibraryViewModel : ObservableObject, IAsyncDisposable
     public RelayCommand ClearSelectionCommand { get; }
     public RelayCommand ToggleDirectionCommand { get; }
     public RelayCommand OpenDataFolderCommand { get; }
+    public RelayCommand ShowLogCommand { get; }
+
+    /// <summary>Preferences → Show log file: writes what is waiting, then opens the file.</summary>
+    public void ShowLog()
+    {
+        _log.Flush();
+        if (_log.Path is { } path && File.Exists(path)) _shell.OpenFile(path);
+        else _shell.ShowMessage("Log file", "There is no log file yet.");
+    }
 
     /* ---------- the filter bar ---------- */
 
@@ -509,6 +522,7 @@ public sealed class LibraryViewModel : ObservableObject, IAsyncDisposable
     public void Rate(IReadOnlyList<TileViewModel> tiles, int? stars)
     {
         var changed = _db.SetRatings(tiles.Select(t => t.Row.Sha256), stars);
+        _log.Info("ratings.set", ("models", changed.Count), ("stars", stars));
         foreach (var sha in changed) UpdateRows(sha, row => row with { Rating = stars });
     }
 
@@ -555,10 +569,12 @@ public sealed class LibraryViewModel : ObservableObject, IAsyncDisposable
         }
         catch (ModelGoneException)
         {
+            _log.Warn("open.gone", ("path", tile.Row.Path));
             _shell.ShowMessage("Open", "That file is no longer where the library found it. Rescan to update the library.");
         }
         catch (Exception e) when (e is IOException or UnauthorizedAccessException or InvalidDataException or NotSupportedException)
         {
+            _log.Warn("open.failed", ("path", tile.Row.Path), ("message", e.Message));
             _shell.ShowMessage("Open", "Could not read the file: " + e.Message);
         }
     }
@@ -617,6 +633,7 @@ public sealed class LibraryViewModel : ObservableObject, IAsyncDisposable
             _queue.Unskip(sha);
             UpdateRows(sha, row => row with { ThumbnailState = ThumbnailState.Pending, ThumbnailError = null, CustomView = !revert && row.CustomView });
         }
+        _log.Info(revert ? "views.revert" : "thumbs.regenerate", ("models", tiles.Select(t => t.Row.Sha256).Distinct().Count()));
         _queue.Start();
         UpdateThumbnailStatus();
     }
@@ -626,8 +643,13 @@ public sealed class LibraryViewModel : ObservableObject, IAsyncDisposable
         string? folder = _shell.PickFolder(tiles.Count == 1 ? "Choose a folder to copy the file to" : $"Choose a folder to copy {tiles.Count:N0} files to");
         if (folder is null) return;
         var progress = new Progress<DownloadProgress>(p => ActivityText = p.Current is null ? "" : $"Copying {p.Done + 1:N0} of {p.Total:N0}: {Path.GetFileName(p.Current)}");
+        _log.Info("download.start", ("files", tiles.Count), ("destination", folder));
+        var started = Stopwatch.StartNew();
         var result = await Downloads.CopyAsync(tiles.Select(t => t.Row).ToList(), folder, _source, progress);
         ActivityText = "";
+        foreach (var failure in result.Failed) _log.Warn("download.fail", ("path", failure.Path), ("message", failure.Message));
+        _log.InfoOrWarn(result.Failed.Count > 0 || result.Changed > 0 || result.Cancelled, "download.end", ("destination", folder),
+            ("duration_ms", started.ElapsedMilliseconds), ("copied", result.Copied), ("failed", result.Failed.Count), ("changed", result.Changed), ("cancelled", result.Cancelled));
         var lines = new List<string> { $"{result.Copied:N0} of {result.Total:N0} copied to {folder}." };
         if (result.Changed > 0) lines.Add($"{result.Changed:N0} had changed since the last scan (copied anyway).");
         if (result.Failed.Count > 0)
@@ -648,6 +670,7 @@ public sealed class LibraryViewModel : ObservableObject, IAsyncDisposable
         set
         {
             _db.SetSetting("scanZips", value ? "1" : "0");
+            _log.Info("setting.changed", ("name", "search_inside_archives"), ("value", value));
             OnPropertyChanged();
         }
     }
@@ -685,6 +708,7 @@ public sealed class LibraryViewModel : ObservableObject, IAsyncDisposable
         {
             if (!Directory.Exists(folder) || _db.HasRoot(folder)) continue;
             _db.AddRoot(folder);
+            _log.Info("folder.added", ("root", folder));
             added.Add(folder);
         }
         if (added.Count == 0) return;
@@ -703,6 +727,7 @@ public sealed class LibraryViewModel : ObservableObject, IAsyncDisposable
         var choice = _shell.ConfirmRemoveFolder(root, files);
         if (choice == RemoveChoice.Cancel) return;
         var result = _db.RemoveRoot(root, purge: choice == RemoveChoice.Purge);
+        _log.Info("folder.removed", ("root", root), ("purge", choice == RemoveChoice.Purge), ("files", result.RemovedLocations), ("models_purged", result.PurgedShas.Count));
         foreach (var sha in result.PurgedShas)
         {
             try { File.Delete(_location.ThumbnailPath(sha)); } catch (IOException) { }
@@ -727,7 +752,9 @@ public sealed class LibraryViewModel : ObservableObject, IAsyncDisposable
         if (IsScanning || roots.Count == 0) return;
         IsScanning = true;
         var cancel = _scanCancel = new CancellationTokenSource();
-        var scanner = new LibraryScanner(_db, _source);
+        var scanner = new LibraryScanner(_db, _source) { Log = _log };
+        var scanClock = Stopwatch.StartNew();
+        if (roots.Count > 1) _log.Info("rescan.start", ("folders", roots.Count));
         var summaries = new List<ScanSummary>();
         var throttle = Stopwatch.StartNew();
         try
@@ -747,6 +774,7 @@ public sealed class LibraryViewModel : ObservableObject, IAsyncDisposable
                 }
                 catch (DirectoryNotFoundException e)
                 {
+                    _log.Error("scan.failed", ("root", roots[i]), ("message", e.Message));
                     summaries.Add(new ScanSummary { Root = roots[i], Errors = 1, Problems = [new ScanProblem(roots[i], e.Message)] });
                 }
             }
@@ -757,6 +785,10 @@ public sealed class LibraryViewModel : ObservableObject, IAsyncDisposable
             _scanCancel = null;
         }
 
+        if (cancel.IsCancellationRequested) _log.Warn("scan.cancel_requested");
+        if (roots.Count > 1)
+            _log.InfoOrWarn(cancel.IsCancellationRequested || summaries.Any(s => s.Errors > 0), "rescan.end", ("duration_ms", scanClock.ElapsedMilliseconds),
+                ("folders", roots.Count), ("cancelled", cancel.IsCancellationRequested));
         ScanText = Describe(summaries, cancel.IsCancellationRequested);
         RefreshAll();
         _queue.Start();   // thumbnails for anything new

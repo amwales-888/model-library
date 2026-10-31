@@ -125,6 +125,8 @@ public class ViewerViewModelTests
         await using var cleanup = f;
         viewer.Rotate(100, 0);
         await viewer.UpdateThumbnailAsync();
+        Assert.Equal("", viewer.UpdateNote is { } note && note.StartsWith("Could not") ? note : "");
+        Assert.True(viewer.HasCustomView);
         string? reverted = null;
         viewer.ViewReverted += sha => reverted = sha;
         viewer.Revert();
@@ -153,7 +155,7 @@ public class ViewerViewModelTests
         string path = Path.Combine(f.Dir, "outside.stl");
         File.WriteAllText(path, Stl.Replace("solid t", "solid outside"));
         var viewer = Viewer(f);
-        f.Shell.OpenFile = path;   // as if chosen with Open file…
+        f.Shell.FileToOpen = path;   // as if chosen with Open file…
         await NextFrame(viewer, () => _ = viewer.OpenFileAsync());
         Assert.True(viewer.HasModel);
         Assert.False(viewer.CanUpdate);

@@ -29,7 +29,23 @@ jobs:
         run: dotnet build Xandrite.slnx -c Release
 
       - name: Test
-        run: dotnet test Xandrite.slnx -c Release --no-build
+        run: dotnet test Xandrite.slnx -c Release --no-build --logger "trx;LogFilePrefix=results" --results-directory TestResults
+
+      # Each failed test becomes an annotation (name and message), readable on the run page and through the API.
+      - name: Report failed tests
+        if: failure()
+        shell: pwsh
+        run: |
+          $ns = @{ t = 'http://microsoft.com/schemas/VisualStudio/TeamTest/2010' }
+          Get-ChildItem TestResults -Filter *.trx -Recurse | ForEach-Object {
+            [xml]$trx = Get-Content $_.FullName
+            Select-Xml -Xml $trx -XPath '//t:UnitTestResult[@outcome="Failed"]' -Namespace $ns | ForEach-Object {
+              $result = $_.Node
+              $message = (($result.Output.ErrorInfo.Message + ' | ' + $result.Output.ErrorInfo.StackTrace) -replace '%', '%25' -replace "`r?`n", ' ').Trim()
+              if ($message.Length -gt 900) { $message = $message.Substring(0, 900) }
+              Write-Output "::error title=$($result.testName)::$message"
+            }
+          }
 
       - name: Draw the samples with WARP
         run: dotnet src/Xandrite.ThumbTool/bin/Release/net10.0/xandrite-thumb.dll samples -o thumbnails --software
